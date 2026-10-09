@@ -1,0 +1,2835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial — DeepSeek Harness: Investigador de Nichos de YouTube</title>
+<style>
+/* ============================================================
+   VARIABLES Y RESET
+   ============================================================ */
+:root{
+  --bg:#0a0e1a;
+  --card:#0f172a;
+  --card2:#0b1220;
+  --accent:#1e3a5f;
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+  --border:#1e293b;
+  --link:#7dd3fc;
+  --code-bg:#0b1220;
+  --ok:#34d399;
+  --warn:#fbbf24;
+  --err:#f87171;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+html{ font-size:16px; scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+body.light{
+  --bg:#f4f7fb;
+  --card:#ffffff;
+  --card2:#eef3f9;
+  --accent:#dbe7f6;
+  --text:#0f172a;
+  --muted:#4b5b70;
+  --border:#d5deea;
+  --link:#0369a1;
+  --code-bg:#eef3f9;
+  --shadow:0 10px 26px rgba(15,23,42,.10);
+}
+*{ box-sizing:border-box; }
+html,body{ max-width:100%; overflow-x:hidden; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  line-height:1.68;
+  transition:background .25s ease,color .25s ease;
+}
+img,svg{ max-width:100%; }
+a{ color:var(--link); text-decoration:none; }
+a:hover{ text-decoration:underline; }
+h1,h2,h3,h4{ line-height:1.25; margin:0 0 .6rem; }
+h1{ font-size:1.75rem; }
+h2{ font-size:1.35rem; margin-top:1.6rem; }
+h3{ font-size:1.1rem; margin-top:1.2rem; }
+h4{ font-size:1rem; margin-top:1rem; }
+p{ margin:.6rem 0; }
+ul,ol{ padding-left:1.25rem; }
+li{ margin:.28rem 0; }
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  background:var(--code-bg);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:.08em .35em;
+  font-size:.88em;
+  word-break:break-word;
+}
+
+/* ============================================================
+   BARRA DE PROGRESO
+   ============================================================ */
+.progress-bar{
+  position:fixed; top:0; left:0; right:0; height:4px;
+  background:transparent; z-index:60; pointer-events:none;
+}
+.progress-bar span{
+  display:block; height:100%; width:0%;
+  background:linear-gradient(90deg,#38bdf8,#818cf8,#38bdf8);
+  transition:width .12s linear;
+}
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+.toolbar{
+  position:sticky; top:0; z-index:50;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  padding:.55rem .8rem;
+  display:flex; flex-wrap:wrap; gap:.5rem; align-items:center;
+}
+.toolbar .brand{
+  font-weight:700; font-size:.86rem; letter-spacing:.3px;
+  color:var(--text); margin-right:auto; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; max-width:46vw;
+}
+.toolbar .brand small{ display:block; font-weight:400; color:var(--muted); font-size:.7rem; letter-spacing:0; }
+.tools{ display:flex; gap:.35rem; flex-wrap:wrap; align-items:center; }
+.btn{
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:.38rem .6rem;
+  font-size:.78rem;
+  font-family:inherit;
+  cursor:pointer;
+  transition:.18s;
+  white-space:nowrap;
+}
+.btn:hover{ border-color:#38bdf8; color:#7dd3fc; }
+.btn:active{ transform:translateY(1px); }
+.btn.primary{ background:var(--accent); border-color:#2b5480; color:#e6f3ff; }
+.search-wrap{ position:relative; }
+.search-wrap input{
+  background:var(--card); border:1px solid var(--border); color:var(--text);
+  border-radius:9px; padding:.38rem .6rem; font-size:.78rem; font-family:inherit;
+  width:130px; outline:none;
+}
+.search-wrap input:focus{ border-color:#38bdf8; }
+.search-info{ font-size:.7rem; color:var(--muted); min-width:52px; }
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.tabs{
+  position:sticky; top:52px; z-index:45;
+  display:flex; gap:.3rem; overflow-x:auto; padding:.5rem .8rem;
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{ display:none; }
+.tab{
+  background:transparent; border:1px solid transparent; color:var(--muted);
+  padding:.42rem .72rem; border-radius:9px; font-size:.76rem; font-weight:600;
+  cursor:pointer; white-space:nowrap; font-family:inherit; letter-spacing:.4px;
+  transition:.18s;
+}
+.tab:hover{ color:var(--text); background:var(--card); }
+.tab.active{
+  background:var(--accent); color:#e6f3ff; border-color:#2b5480;
+  box-shadow:0 0 0 1px rgba(56,189,248,.25);
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+main{ max-width:1000px; margin:0 auto; padding:1rem .85rem 4rem; }
+.panel{ display:none; animation:fade .28s ease; }
+.panel.active{ display:block; }
+@keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:1rem 1rem;
+  margin:.9rem 0;
+  box-shadow:var(--shadow);
+}
+.card.soft{ background:var(--card2); box-shadow:none; }
+.box{
+  border-left:3px solid #38bdf8;
+  background:var(--card2);
+  border-radius:0 10px 10px 0;
+  padding:.7rem .9rem;
+  margin:.8rem 0;
+}
+.box.ok{ border-left-color:var(--ok); }
+.box.warn{ border-left-color:var(--warn); }
+.box.err{ border-left-color:var(--err); }
+.box .box-title{ font-weight:700; font-size:.83rem; letter-spacing:.4px; margin-bottom:.25rem; display:block; }
+.box.ok .box-title{ color:var(--ok); }
+.box.warn .box-title{ color:var(--warn); }
+.box.err .box-title{ color:var(--err); }
+.box.info .box-title{ color:#7dd3fc; }
+
+.pill{
+  display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.6px;
+  padding:.16rem .5rem; border-radius:999px; border:1px solid var(--border);
+  background:var(--card2); color:var(--muted); margin-right:.3rem;
+}
+.pill.blue{ color:#7dd3fc; border-color:#2b5480; }
+.pill.green{ color:var(--ok); border-color:#1f5c46; }
+.pill.amber{ color:var(--warn); border-color:#5c4a1a; }
+
+/* ============================================================
+   SVG HERO
+   ============================================================ */
+.hero-svg-mount{
+  width:100%; max-width:820px; margin:0 auto 14px;
+  border-radius:16px; overflow:hidden;
+  background:#0b1220;
+  border:1px solid var(--border);
+  box-shadow:0 12px 34px rgba(0,0,0,.45);
+}
+.hero-svg-mount svg{ display:block; width:100%; height:auto; }
+.hero-svg-mount img{ display:block; width:100%; height:auto; }
+.hero-caption{
+  text-align:center; font-size:.76rem; color:var(--muted);
+  margin:-4px 0 16px; font-style:italic;
+}
+
+/* ============================================================
+   CÓDIGO / COPY
+   ============================================================ */
+.codeblock{
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+  margin:.9rem 0; background:var(--code-bg);
+}
+.codeblock-head{
+  display:flex; align-items:center; gap:.5rem;
+  padding:.42rem .6rem; background:var(--accent);
+  border-bottom:1px solid var(--border);
+}
+.codeblock-head span{
+  font-size:.72rem; font-weight:700; letter-spacing:.5px; color:#dbeafe;
+  margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.copyBtn{
+  background:#0b1220; color:#7dd3fc; border:1px solid #2b5480;
+  border-radius:7px; font-size:.68rem; font-weight:700; letter-spacing:.6px;
+  padding:.24rem .55rem; cursor:pointer; font-family:inherit;
+}
+.copyBtn:hover{ background:#12203a; }
+.copyBtn.done{
+  background:#166534; border-color:#34d399; color:#d1fae5;
+}
+.codeblock pre{
+  margin:0; padding:.8rem .85rem; overflow-x:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.76rem; line-height:1.6; color:#cbd5e1;
+  white-space:pre; tab-size:2;
+}
+body.light .codeblock pre{ color:#1e293b; }
+
+/* ============================================================
+   TABLAS
+   ============================================================ */
+.table-wrap{ overflow-x:auto; margin:.8rem 0; border-radius:10px; border:1px solid var(--border); }
+table{ width:100%; border-collapse:collapse; font-size:.8rem; min-width:520px; }
+th,td{ padding:.55rem .65rem; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; }
+th{ background:var(--accent); color:#e6f3ff; font-size:.74rem; letter-spacing:.4px; }
+tr:last-child td{ border-bottom:none; }
+tbody tr:nth-child(even){ background:color-mix(in srgb, var(--card2) 60%, transparent); }
+
+/* ============================================================
+   PASOS
+   ============================================================ */
+.step{
+  border:1px solid var(--border); border-radius:12px; background:var(--card2);
+  padding:.8rem .9rem; margin:.7rem 0; position:relative;
+}
+.step-head{ display:flex; gap:.55rem; align-items:flex-start; margin-bottom:.3rem; }
+.step-num{
+  flex:0 0 auto; width:26px; height:26px; border-radius:8px;
+  background:var(--accent); color:#dbeafe; font-weight:700; font-size:.76rem;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid #2b5480;
+}
+.step-title{ font-weight:700; font-size:.9rem; padding-top:2px; }
+.step-body{ font-size:.86rem; }
+.motivo{ font-size:.78rem; color:var(--muted); margin-top:.4rem; font-style:italic; }
+.resultado{
+  font-size:.8rem; margin-top:.45rem; padding:.45rem .6rem;
+  border-radius:8px; background:rgba(52,211,153,.08);
+  border:1px solid rgba(52,211,153,.3); color:var(--text);
+}
+.resultado b{ color:var(--ok); }
+
+/* ============================================================
+   DETAILS
+   ============================================================ */
+details{
+  border:1px solid var(--border); border-radius:12px;
+  background:var(--card2); margin:.7rem 0; overflow:hidden;
+}
+details > summary{
+  cursor:pointer; padding:.7rem .9rem; font-weight:700; font-size:.86rem;
+  list-style:none; display:flex; align-items:center; gap:.5rem;
+  color:var(--text);
+}
+details > summary::-webkit-details-marker{ display:none; }
+details > summary::before{
+  content:"▸"; color:#38bdf8; font-size:.9rem; transition:transform .2s;
+}
+details[open] > summary::before{ transform:rotate(90deg); }
+details > summary:hover{ background:var(--accent); }
+.details-body{ padding:.2rem .9rem .9rem; font-size:.86rem; }
+
+/* ============================================================
+   CHECKLIST
+   ============================================================ */
+.check-item{
+  display:flex; gap:.6rem; align-items:flex-start;
+  padding:.5rem .6rem; border-radius:9px; border:1px solid var(--border);
+  background:var(--card2); margin:.35rem 0; font-size:.84rem;
+}
+.check-item input{ margin-top:.28rem; width:16px; height:16px; accent-color:#38bdf8; flex:0 0 auto; }
+.check-item label{ cursor:pointer; }
+.check-item.done label{ color:var(--muted); text-decoration:line-through; }
+.chk-progress{
+  font-size:.78rem; color:var(--muted); margin:.5rem 0 .8rem;
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+}
+.chk-bar{ flex:1 1 120px; height:7px; border-radius:99px; background:var(--border); overflow:hidden; min-width:100px; }
+.chk-bar span{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#34d399,#38bdf8); transition:width .3s; }
+
+/* ============================================================
+   DIAGRAMA
+   ============================================================ */
+.diagram{ display:flex; flex-direction:column; gap:.5rem; align-items:center; margin:1rem 0; }
+.dg-row{ display:flex; gap:.45rem; flex-wrap:wrap; justify-content:center; }
+.dg-node{
+  background:var(--card2); border:1px solid var(--border); border-radius:10px;
+  padding:.45rem .7rem; font-size:.74rem; font-weight:600; text-align:center;
+}
+.dg-node.master{ background:var(--accent); border-color:#2b5480; color:#dbeafe; padding:.55rem 1.1rem; }
+.dg-node.skill{ border-color:#2b5480; color:#7dd3fc; }
+.dg-arrow{ color:var(--muted); font-size:1rem; line-height:1; }
+
+/* ============================================================
+   CRÉDITOS
+   ============================================================ */
+.author-name{
+  font-size:2.1rem; font-weight:800; letter-spacing:-.5px; margin:.2rem 0 .1rem;
+  background:linear-gradient(90deg,#38bdf8,#818cf8,#38bdf8);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.author-role{ font-size:.95rem; color:var(--muted); margin:0 0 .4rem; font-weight:600; letter-spacing:.5px; }
+.meta-grid{ display:grid; grid-template-columns:1fr; gap:.5rem; margin-top:.9rem; }
+@media(min-width:560px){ .meta-grid{ grid-template-columns:1fr 1fr; } }
+.meta-item{
+  background:var(--card2); border:1px solid var(--border); border-radius:10px;
+  padding:.6rem .75rem; font-size:.8rem;
+}
+.meta-item b{ display:block; color:var(--muted); font-size:.68rem; letter-spacing:.8px; text-transform:uppercase; margin-bottom:.15rem; }
+
+/* ============================================================
+   PROMPTS
+   ============================================================ */
+.prompt-index{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1rem 1.1rem;
+  margin:1rem 0 1.6rem;
+}
+.prompt-index h3{
+  margin:0 0 .7rem;
+  font-size:.85rem;
+  letter-spacing:.9px;
+  color:var(--muted);
+  text-transform:uppercase;
+}
+.prompt-index ol{
+  margin:0;
+  padding-left:1.3rem;
+  column-gap:1.6rem;
+}
+@media(min-width:640px){
+  .prompt-index ol{ columns:2; }
+}
+.prompt-index li{
+  margin:.35rem 0;
+  break-inside:avoid;
+  font-size:.86rem;
+}
+.prompt-index a{
+  color:var(--link);
+  font-weight:600;
+}
+
+.promptBox{
+  scroll-margin-top:118px;
+  margin:1.6rem 0 1.9rem;
+}
+.promptBox > h2{
+  margin:0 0 .5rem;
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  flex-wrap:wrap;
+  font-size:1.15rem;
+}
+.promptBox > h2 .pnum{
+  flex:0 0 auto;
+  width:28px; height:28px;
+  border-radius:8px;
+  background:var(--accent);
+  border:1px solid #2b5480;
+  color:#dbeafe;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.78rem;
+  font-weight:700;
+}
+.prompt-meta{
+  font-size:.87rem;
+  margin:.5rem 0 .7rem;
+}
+.prompt-meta b{ color:#7dd3fc; }
+.promptBox .codeblock{ margin-top:.5rem; }
+.copyBtn.done{
+  background:#166534 !important;
+  border-color:#34d399 !important;
+  color:#d1fae5 !important;
+}
+
+@media(max-width:520px){
+  .copyBtn{
+    min-height:36px;
+    padding:.42rem .75rem;
+    font-size:.72rem;
+  }
+  .promptBox > h2{ font-size:1.05rem; }
+}
+
+/* ============================================================
+   VARIOS
+   ============================================================ */
+.to-top{
+  position:fixed; right:14px; bottom:14px; z-index:55;
+  width:44px; height:44px; border-radius:50%;
+  background:var(--accent); color:#dbeafe; border:1px solid #2b5480;
+  font-size:1.1rem; cursor:pointer; display:none;
+  align-items:center; justify-content:center; box-shadow:var(--shadow);
+}
+.to-top.show{ display:flex; }
+mark.search-hl{ background:#fbbf24; color:#111827; border-radius:3px; padding:0 .1em; }
+.footer-note{ text-align:center; color:var(--muted); font-size:.74rem; margin-top:2rem; }
+.iframe-warning{
+  display:none; margin:.6rem 0; padding:.6rem .8rem; border-radius:10px;
+  background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.4);
+  color:var(--text); font-size:.8rem;
+}
+.iframe-warning.show{ display:block; }
+.sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+@media print{
+  @page{ size:A4 portrait; margin:14mm 12mm; }
+  html,body{
+    background:#fff !important; color:#000 !important;
+    padding:0 !important; margin:0 !important; font-size:11pt !important;
+  }
+  .toolbar,.tabs,.to-top,.copyBtn,.progress-bar,nav,.iframe-warning,.chk-bar{ display:none !important; }
+  .search-hl{ background:transparent !important; color:#000 !important; }
+  .panel{
+    display:block !important;
+    page-break-after:auto !important;
+    animation:none !important;
+  }
+  pre,table{ overflow:visible !important; white-space:pre-wrap !important; word-break:break-word !important; }
+  .table-wrap{ overflow:visible !important; border:1px solid #999 !important; }
+  *{
+    background-image:none !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+    animation:none !important;
+    transition:none !important;
+  }
+  .author-name{
+    -webkit-background-clip:initial !important;
+    background-clip:initial !important;
+    color:#0b1220 !important;
+    background:none !important;
+  }
+  .card,.box,.step,.check-item,.meta-item,.codeblock,details,.dg-node,.prompt-index{
+    background:#fff !important; color:#000 !important;
+    border:1px solid #999 !important;
+  }
+  .codeblock pre,.codeblock-head{ background:#f4f4f4 !important; color:#000 !important; }
+  .codeblock-head span{ color:#000 !important; }
+  th{ background:#e8eef7 !important; color:#000 !important; }
+  td{ color:#000 !important; }
+  a{ color:#000 !important; text-decoration:underline !important; }
+  h1,h2,h3,h4{ color:#000 !important; page-break-after:avoid; }
+  .hero-svg-mount{ border:1px solid #999 !important; background:#fff !important; }
+  details{ display:block !important; }
+  details > summary{ list-style:none; }
+  details > summary::before{ content:""; }
+  .pill{ border:1px solid #666 !important; color:#000 !important; background:#fff !important; }
+  .step-num{ background:#e8eef7 !important; color:#000 !important; border:1px solid #666 !important; }
+  .resultado{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
+  main{ max-width:100% !important; padding:0 !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" aria-hidden="true"><span id="progressFill"></span></div>
+
+<header class="toolbar">
+  <div class="brand">
+    DeepSeek Harness
+    <small>Investigador de Nichos de YouTube</small>
+  </div>
+  <div class="tools">
+    <div class="search-wrap">
+      <input type="search" id="searchInput" placeholder="Buscar…" aria-label="Buscar en el tutorial">
+    </div>
+    <span class="search-info" id="searchInfo"></span>
+    <button class="btn" id="btnMinus" title="Reducir texto">A−</button>
+    <button class="btn" id="btnPlus" title="Aumentar texto">A+</button>
+    <button class="btn" id="btnTheme" title="Cambiar tema">☀️</button>
+    <button class="btn primary" id="btnPrint" title="Imprimir o guardar como PDF">🖨️ PDF</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Secciones del tutorial">
+  <button class="tab active" data-target="p-inicio" role="tab" aria-selected="true">INICIO</button>
+  <button class="tab" data-target="p-conceptos" role="tab" aria-selected="false">CONCEPTOS</button>
+  <button class="tab" data-target="p-procedimiento" role="tab" aria-selected="false">PROCEDIMIENTO</button>
+  <button class="tab" data-target="p-practica" role="tab" aria-selected="false">PRÁCTICA</button>
+  <button class="tab" data-target="p-errores" role="tab" aria-selected="false">ERRORES</button>
+  <button class="tab" data-target="p-resumen" role="tab" aria-selected="false">RESUMEN</button>
+  <button class="tab" data-target="p-fuentes" role="tab" aria-selected="false">FUENTES</button>
+  <button class="tab" data-target="p-prompts" role="tab" aria-selected="false">PROMPTS</button>
+  <button class="tab" data-target="p-creditos" role="tab" aria-selected="false">CRÉDITOS</button>
+</nav>
+
+<main>
+
+<!-- ============================================================
+     PANEL: INICIO
+     ============================================================ -->
+<section class="panel active" id="p-inicio" role="tabpanel" aria-label="Inicio">
+
+  <div class="hero-svg-mount" data-svg-hero="true" role="img"
+       aria-label="Animación: un agente coordinador central conectado a siete subagentes especializados mediante pulsos que viajan por las conexiones."></div>
+  <p class="hero-caption">Un coordinador central reparte el trabajo entre siete especialistas. Eso es la orquestación multiagente.</p>
+
+  <h1>Tutorial: crea tu Investigador de Nichos de YouTube con DeepSeek Harness</h1>
+  <p><span class="pill blue">NIVEL: PRINCIPIANTE</span><span class="pill">SIN PROGRAMAR</span><span class="pill green">7 SUBAGENTES</span></p>
+
+  <div class="card">
+    <h2 style="margin-top:0">¿Qué vas a aprender aquí?</h2>
+    <p>Vas a construir, desde cero y sin escribir una sola línea de código, un <b>asistente de investigación de nichos de YouTube</b> dentro de DeepSeek Harness.</p>
+    <p>Ese asistente no es un chat genérico. Es un <b>equipo de ocho inteligencias trabajando juntas</b>: un director que coordina y siete especialistas que investigan canales, analizan tendencias, miden la demanda, documentan un tema, verifican los datos, escriben guiones y diseñan títulos y miniaturas.</p>
+  </div>
+
+  <div class="card soft">
+    <h2 style="margin-top:0">¿Para qué sirve?</h2>
+    <ul>
+      <li><b>Lanzar un canal desde cero:</b> saber qué temas crecen y cuáles están saturados <i>antes</i> de grabar tu primer vídeo.</li>
+      <li><b>Mejorar un canal existente:</b> ver qué ángulos y títulos están funcionando en tu competencia.</li>
+      <li><b>Validar una idea:</b> comprobar si hay audiencia real para un tema, en tu idioma y en tu mercado.</li>
+    </ul>
+  </div>
+
+  <div class="box info">
+    <span class="box-title">💡 LA IDEA EN UNA FRASE</span>
+    En lugar de pedirle todo a una sola IA (que lo hará regular), montas un <b>equipo</b>: cada especialista hace una sola cosa y la hace bien, y un coordinador los dirige.
+  </div>
+
+  <h2>¿Qué necesitas antes de empezar?</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Necesitas</th><th>Detalle</th><th>¿Imprescindible?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Un ordenador</td><td>Windows o macOS (también funciona en Linux)</td><td>Sí</td></tr>
+        <tr><td>DeepSeek Harness instalado</td><td>La aplicación de escritorio, no la versión web</td><td>Sí</td></tr>
+        <tr><td>Una carpeta de trabajo</td><td>Donde se guardarán los informes y el estado del proyecto</td><td>Sí</td></tr>
+        <tr><td>Permisos de escritura</td><td>Modo <i>Workspace Write</i> o <i>Full Access</i></td><td>Sí</td></tr>
+        <tr><td>Modelo DeepSeek Pro</td><td>Con esfuerzo de razonamiento <b>Alto</b></td><td>Sí</td></tr>
+        <tr><td>Saber programar</td><td>No hace falta absolutamente nada de código</td><td>No</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Objetivos del tutorial</h2>
+  <ol>
+    <li>Entender qué es la orquestación multiagente y por qué ahorra tiempo.</li>
+    <li>Preparar correctamente el entorno de trabajo en DeepSeek Harness.</li>
+    <li>Crear el preset <code>investigador-nichos-youtube</code> usando Creator Mode.</li>
+    <li>Ejecutar una investigación completa, fase por fase, con dos puntos de decisión.</li>
+    <li>Saber resolver los errores más habituales sin borrar nada.</li>
+  </ol>
+
+  <h2>Cómo usar este tutorial</h2>
+  <div class="diagram">
+    <div class="dg-row">
+      <div class="dg-node">1. Lee CONCEPTOS</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">2. Sigue PROCEDIMIENTO</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">3. Practica en PRÁCTICA</div>
+    </div>
+    <div class="dg-row">
+      <div class="dg-node">4. Consulta ERRORES si algo falla</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">5. Repasa con RESUMEN</div>
+    </div>
+  </div>
+  <p>Las pestañas de arriba se quedan fijas mientras bajas, así que puedes saltar a cualquier sección en cualquier momento. El buscador de la barra superior resalta coincidencias dentro de la pestaña que estés viendo.</p>
+
+  <h2>Checklist de aprendizaje</h2>
+  <p style="font-size:.85rem;color:var(--muted)">Marca cada punto a medida que lo completes. Tu progreso se guarda en este navegador.</p>
+  <div class="chk-progress">
+    <span id="chkText">0 de 8 completados</span>
+    <div class="chk-bar"><span id="chkFill"></span></div>
+  </div>
+
+  <div class="check-item"><input type="checkbox" id="chk1"><label for="chk1">Entiendo qué es un agente coordinador y qué es un subagente.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk2"><label for="chk2">He instalado DeepSeek Harness en mi ordenador.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk3"><label for="chk3">He creado mi carpeta de trabajo y he dado permisos de escritura.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk4"><label for="chk4">He seleccionado DeepSeek Pro con esfuerzo Alto.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk5"><label for="chk5">He creado el preset con el Prompt Maestro en Creator Mode.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk6"><label for="chk6">He visto que el catálogo valida las 7 skills.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk7"><label for="chk7">He abierto una sesión nueva y he hecho una investigación real.</label></div>
+  <div class="check-item"><input type="checkbox" id="chk8"><label for="chk8">Sé reparar un error de YAML sin borrar el preset.</label></div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: CONCEPTOS
+     ============================================================ -->
+<section class="panel" id="p-conceptos" role="tabpanel" aria-label="Conceptos">
+
+  <h1>Conceptos clave</h1>
+  <p>Antes de tocar nada, necesitas entender cuatro ideas. No hace falta saber programar: hace falta saber <b>qué papel juega cada pieza</b>.</p>
+
+  <h2>1. ¿Qué es DeepSeek Harness?</h2>
+  <div class="card">
+    <p>DeepSeek Harness es una plataforma que permite transformar <b>un solo modelo de inteligencia artificial</b> en una <b>estructura de trabajo multiagente</b>.</p>
+    <p>En un chat normal, tú hablas con una IA que intenta hacerlo todo: buscar, escribir, analizar, resumir. El resultado suele ser genérico.</p>
+    <p>En Harness, tú hablas con un <b>agente coordinador</b>. Ese coordinador no lo hace todo: <b>reparte el trabajo</b> entre subagentes especializados, recoge los resultados y te los presenta ordenados.</p>
+  </div>
+
+  <h2>2. La analogía del director de cine</h2>
+  <p>Imagina que quieres rodar una película.</p>
+
+  <div class="box err">
+    <span class="box-title">❌ ENFOQUE TRADICIONAL (un solo chat)</span>
+    Contratas a <b>una sola persona</b> y le pides que escriba el guion, opere la cámara, actúe, diseñe el vestuario, edite el vídeo y componga la música. El resultado será mediocre o descuidado.
+  </div>
+
+  <div class="box ok">
+    <span class="box-title">✅ ENFOQUE MULTIAGENTE (DeepSeek Harness)</span>
+    Contratas a un <b>Director de Cine</b> (el agente coordinador). El director contrata a siete profesionales: un cazatalentos, dos analistas de mercado, un documentalista, un auditor de datos, un guionista y un diseñador de portadas. El director reparte tareas, reúne los entregables y <b>solo te interrumpe a ti</b> (el productor) cuando hay que decidir algo importante.
+  </div>
+
+  <h2>3. El equipo completo</h2>
+  <div class="diagram">
+    <div class="dg-node master">🎬 COORDINADOR<br><small style="font-weight:400;opacity:.8">habla contigo y reparte el trabajo</small></div>
+    <div class="dg-arrow">↓</div>
+    <div class="dg-row">
+      <div class="dg-node skill">explorador-canales</div>
+      <div class="dg-node skill">analista-canales-tendencias</div>
+      <div class="dg-node skill">analista-demanda</div>
+    </div>
+    <div class="dg-arrow">↓</div>
+    <div class="dg-row">
+      <div class="dg-node skill">investigador-tema</div>
+      <div class="dg-node skill">verificador</div>
+    </div>
+    <div class="dg-arrow">↓</div>
+    <div class="dg-row">
+      <div class="dg-node skill">guionista</div>
+      <div class="dg-node skill">especialista-packaging</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Subagente (skill)</th><th>¿Qué hace exactamente?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>explorador-canales</code></td><td>Localiza entre 5 y 8 canales del nicho (consolidados, emergentes y casos raros de éxito) con enlaces reales y una justificación. <b>No inventa métricas.</b></td></tr>
+        <tr><td><code>analista-canales-tendencias</code></td><td>Cruza los canales aprobados para detectar patrones de temas, formatos, títulos, resultados atípicos, crecimiento, saturación y huecos.</td></tr>
+        <tr><td><code>analista-demanda</code></td><td>Evalúa señales actuales de demanda con búsqueda web y de YouTube, autocompletado, actualidad, repetición temática y competencia visible. Devuelve una tabla de 8 a 12 temas.</td></tr>
+        <tr><td><code>investigador-tema</code></td><td>Investiga a fondo el tema elegido usando fuentes primarias. Reúne hechos, ejemplos, riesgos, límites y material útil para el guion.</td></tr>
+        <tr><td><code>verificador</code></td><td>Audita el dossier de forma independiente. Clasifica cada afirmación como <b>confirmada, corregida, no verificable o descartada</b>.</td></tr>
+        <tr><td><code>guionista</code></td><td>Convierte el dossier verificado en dos guiones (largo y corto) con una estructura de introducción fija.</td></tr>
+        <tr><td><code>especialista-packaging</code></td><td>Propone 10 títulos y 3 conceptos de miniatura, más una pareja recomendada.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>4. Glosario básico</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Término</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><b>LLM</b></td><td><i>Large Language Model</i>. El motor de IA (por ejemplo DeepSeek Pro o Flash) que procesa y genera texto.</td></tr>
+        <tr><td><b>Agente Coordinador</b></td><td>La IA principal. Habla contigo, interpreta tus peticiones y activa a los especialistas según la fase.</td></tr>
+        <tr><td><b>Subagente / Skill</b></td><td>Un conjunto de instrucciones especializadas guardadas en un archivo <code>SKILL.md</code>. Le enseñan a la IA cómo ejecutar un rol concreto.</td></tr>
+        <tr><td><b>Workspace</b></td><td>La carpeta de tu ordenador donde se guardan las investigaciones, informes y archivos generados.</td></tr>
+        <tr><td><b>Preset</b></td><td>La plantilla que almacena al coordinador y a sus subagentes. Es lo que seleccionas al empezar una sesión.</td></tr>
+        <tr><td><b>YAML / Frontmatter</b></td><td>El encabezado que va al principio de cada <code>SKILL.md</code> y define su nombre y descripción. Es muy sensible a los espacios.</td></tr>
+        <tr><td><b>Creator Mode</b></td><td>El modo especial de Harness que sirve para <i>construir</i> presets y subagentes. No se usa para trabajar.</td></tr>
+        <tr><td><b>Slug</b></td><td>Versión simplificada de un texto para usar en rutas de archivos. Ejemplo: <code>crear-canales-de-youtube</code>.</td></tr>
+        <tr><td><b>CTR</b></td><td><i>Click-Through Rate</i>. Porcentaje de personas que hacen clic en tu vídeo tras ver el título y la miniatura.</td></tr>
+        <tr><td><b>Packaging</b></td><td>El conjunto formado por título, miniatura y descripción de un vídeo.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>5. Chat tradicional vs. sistema multiagente</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Característica</th><th>Chat tradicional de IA</th><th>Sistema multiagente en Harness</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Estructura</td><td>Un solo hilo de conversación monolítico.</td><td>Un coordinador y múltiples subagentes especializados.</td></tr>
+        <tr><td>Flujo de trabajo</td><td>Respuestas lineales; tú pides cada paso.</td><td>Flujo automatizado por fases con puntos de decisión.</td></tr>
+        <tr><td>Verificación de datos</td><td>La IA tiende a inventar datos para completar la respuesta.</td><td>Subagente dedicado a auditar y clasificar cada dato.</td></tr>
+        <tr><td>Ejecución de tareas</td><td>Secuencial e individual.</td><td>Análisis en paralelo cuando es posible.</td></tr>
+        <tr><td>Persistencia</td><td>Se pierde el contexto si la charla es muy larga.</td><td>Guarda el progreso en <code>project-state.md</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>6. Ejemplo incorrecto vs. ejemplo correcto</h2>
+
+  <div class="box err">
+    <span class="box-title">❌ EJEMPLO INCORRECTO</span>
+    <p>Pedir a un chat genérico:</p>
+    <p><i>"Dame 10 ideas de vídeos de YouTube sobre finanzas, escríbeme el guion y dime qué miniatura hacer."</i></p>
+    <p><b>Resultado:</b> ideas repetitivas, datos no verificados y guiones superficiales sin estructura comercial.</p>
+  </div>
+
+  <div class="box ok">
+    <span class="box-title">✅ EJEMPLO CORRECTO</span>
+    <p>Iniciar el preset de investigación en Harness y pedir:</p>
+    <p><i>"Quiero comenzar una investigación nueva sobre el nicho de Finanzas Personales."</i></p>
+    <p><b>Resultado:</b> el explorador localiza canales reales, dos analistas evalúan la demanda en paralelo, tú eliges el tema, el investigador reúne documentación, el verificador confirma las cifras y el guionista aplica una estructura probada.</p>
+  </div>
+
+  <h2>7. Resumen del bloque de conceptos</h2>
+  <div class="card soft">
+    DeepSeek Harness organiza el trabajo sustituyendo los prompts individuales por un flujo orquestado. Un agente coordinador dirige a subagentes especializados que investigan, verifican y estructuran el contenido, guardando todo el progreso en tu ordenador.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: PROCEDIMIENTO
+     ============================================================ -->
+<section class="panel" id="p-procedimiento" role="tabpanel" aria-label="Procedimiento">
+
+  <h1>Procedimiento completo, paso a paso</h1>
+  <p>Este bloque tiene tres partes: <b>A</b> instalar, <b>B</b> crear el preset y <b>C</b> ejecutar la investigación.</p>
+
+  <div class="box warn">
+    <span class="box-title">⚠️ REGLA DE ORO</span>
+    El Creator Mode sirve <b>solo</b> para construir y validar el preset. <b>Nunca</b> ejecutes una investigación real dentro de Creator Mode. Para investigar, abre siempre una sesión nueva.
+  </div>
+
+  <!-- ================= PARTE A ================= -->
+  <h2>PARTE A — Instalación y configuración</h2>
+
+  <div class="diagram">
+    <div class="dg-row">
+      <div class="dg-node">1. Instalar la app</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">2. Crear el Workspace</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">3. Dar permisos</div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-node">4. Elegir modelo</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">1</div><div class="step-title">Descargar la aplicación</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Accede a la página oficial de DeepSeek Harness.</li>
+        <li>Selecciona la versión correspondiente a tu sistema operativo (Windows, macOS, etc.).</li>
+        <li>Instálala siguiendo el asistente habitual.</li>
+      </ol>
+      <p class="motivo">Motivo: la versión de escritorio facilita la configuración y evita procesos más complejos basados en consola o terminal.</p>
+      <div class="resultado"><b>Resultado esperado:</b> tienes el icono de DeepSeek Harness y la aplicación abre correctamente.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">2</div><div class="step-title">Crear y seleccionar la carpeta de trabajo (Workspace)</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Abre DeepSeek Harness.</li>
+        <li>En la interfaz principal, haz clic en el selector de carpetas.</li>
+        <li>Crea una carpeta en tu ordenador llamada <code>investigacion_youtube</code>.</li>
+        <li>Selecciónala como carpeta de trabajo.</li>
+      </ol>
+      <p class="motivo">Motivo: esta carpeta será el contenedor seguro donde la IA creará y leerá todos los informes y el archivo de estado del proyecto.</p>
+      <div class="resultado"><b>Resultado esperado:</b> la ruta de tu carpeta aparece en la parte superior de la interfaz.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">3</div><div class="step-title">Configurar los permisos de acceso</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Localiza el selector de permisos en la interfaz.</li>
+        <li>Selecciona <b>Full Access</b> o <b>Workspace Write</b>.</li>
+        <li>Si eliges <i>Workspace Write</i>, revisa la ruta antes de autorizar cada escritura.</li>
+      </ol>
+      <p class="motivo">Motivo: el modo <i>Read Only</i> permite consultar archivos, pero impide que el agente cree las carpetas y los archivos de las skills.</p>
+      <div class="resultado"><b>Resultado esperado:</b> el agente puede escribir archivos dentro de tu carpeta de trabajo.</div>
+      <div class="box err" style="margin-bottom:0">
+        <span class="box-title">❌ ERROR FRECUENTE</span>
+        Dejar el modo <i>Read Only</i> durante la creación del agente. El sistema devolverá un error al intentar guardar las habilidades en el disco duro.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">4</div><div class="step-title">Seleccionar el modelo y el esfuerzo de razonamiento</div></div>
+    <div class="step-body">
+      <ol>
+        <li>En el desplegable de modelos, selecciona <b>DeepSeek Pro</b> (o <b>DeepSeek-V4-Pro</b>).</li>
+        <li>En el nivel de esfuerzo (<i>effort</i>), marca <b>Alto (High)</b>.</li>
+      </ol>
+      <p class="motivo">Motivo: crear un sistema multiagente requiere la máxima capacidad analítica para estructurar correctamente los archivos de configuración.</p>
+      <div class="resultado"><b>Resultado esperado:</b> el indicador de modelo muestra DeepSeek Pro con esfuerzo Alto.</div>
+    </div>
+  </div>
+
+  <!-- ================= PARTE B ================= -->
+  <h2>PARTE B — Crear el preset con Creator Mode</h2>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">1</div><div class="step-title">Activar el Creator Mode</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Haz clic en el selector de modos o presets dentro de Harness.</li>
+        <li>Cambia de <code>Standard mode</code> a <b>Creator Mode</b>.</li>
+      </ol>
+      <p class="motivo">Motivo: Creator Mode es un meta-agente diseñado específicamente para construir, escribir y validar nuevos presets y subagentes personalizados sin que tú tengas que programarlos.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">2</div><div class="step-title">Pegar el Prompt Maestro completo</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Copia íntegramente el texto que aparece abajo (botón COPIAR).</li>
+        <li>Pégalo como un <b>único mensaje</b> en la casilla de chat.</li>
+        <li>Pulsa enviar.</li>
+      </ol>
+      <p class="motivo">Motivo: el prompt contiene la definición completa del preset, las siete skills y las reglas de validación. Debe llegar entero, no troceado.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>📋 Ver el PROMPT MAESTRO completo (pulsa para desplegar)</summary>
+    <div class="details-body">
+      <div class="codeblock">
+        <div class="codeblock-head">
+          <span>PROMPT MAESTRO — investigador-nichos-youtube</span>
+          <button class="copyBtn" data-copy="#promptMaestro">COPIAR</button>
+        </div>
+<pre id="promptMaestro">INICIO DEL PROMPT MAESTRO
+
+Quiero que crees un preset personalizado de DeepSeek Harness llamado:
+
+ID: investigador-nichos-youtube
+Nombre visible: Investigador de Nichos YouTube
+Descripción: Sistema multiagente que investiga nichos y canales de YouTube, detecta oportunidades actuales y produce investigación, guiones, títulos y conceptos de miniatura.
+
+OBJETIVO
+Construye un coordinador en español que convierta una conversación guiada en una investigación completa de YouTube. El usuario no debe tener que saber programar ni gestionar manualmente a los subagentes.
+
+BASE Y CAPACIDADES
+1. Parte de una copia del preset incorporado "standard". No modifiques ningún preset incorporado.
+2. Conserva búsqueda web y fetch, subagentes, ejecución paralela o workflow, skills, planificación, objetivos, lectura y escritura de archivos.
+3. Registra siete skills locales independientes dentro del propio preset.
+4. El coordinador debe cargar la skill correspondiente antes de delegar cada especialidad.
+5. Usa rutas relativas y {{cwd}}. No incluyas claves, secretos ni rutas personales.
+6. Escribe únicamente bajo la raíz de presets del usuario, en la carpeta investigador-nichos-youtube.
+7. Intenta realizar la creación y validación con el menor número razonable de operaciones de escritura.
+
+ARCHIVOS ESPERADOS
+- preset.yml
+- agent.cordis.yml
+- skills/explorador-canales/SKILL.md
+- skills/analista-canales-tendencias/SKILL.md
+- skills/analista-demanda/SKILL.md
+- skills/investigador-tema/SKILL.md
+- skills/verificador/SKILL.md
+- skills/guionista/SKILL.md
+- skills/especialista-packaging/SKILL.md
+
+PERSONA Y REGLAS DEL COORDINADOR
+El coordinador habla siempre en español claro y dirige el proceso de principio a fin.
+
+Reglas obligatorias:
+- No inventa datos, volúmenes de búsqueda, cifras de suscriptores ni conclusiones.
+- Cita enlaces concretos y fecha de consulta cuando use información externa.
+- Separa siempre HECHO OBSERVADO, INFERENCIA y RECOMENDACIÓN.
+- No promete que un vídeo se hará viral. Habla de señales, oportunidad y riesgo.
+- Si una fuente está bloqueada, lo indica y busca una alternativa; no rellena el hueco con una suposición.
+- Hace una sola pregunta de decisión cada vez.
+- No avanza después de los dos puntos de decisión hasta recibir respuesta del usuario.
+- No obliga al usuario a invocar skills o subagentes manualmente.
+- Puede retomar una investigación leyendo su archivo de estado.
+- No da por finalizada una fase si falta una entrega del especialista correspondiente.
+
+ARCHIVO DE ESTADO
+En cada investigación crea y mantiene: niche-projects/&lt;slug-del-nicho&gt;/project-state.md
+
+Debe conservar como mínimo estas secciones:
+1. Nicho
+2. Idioma y mercado
+3. Canales de referencia aportados
+4. Canales descubiertos
+5. Evidencias y fuentes
+6. Patrones observados
+7. Temas y oportunidades
+8. Tema elegido
+9. Investigación del tema
+10. Verificación
+11. Guiones
+12. Guion elegido
+13. Títulos y miniaturas
+14. Recomendación final
+
+Si el archivo ya existe, primero debe leerlo, conservar lo válido y actualizarlo sin borrar resultados anteriores.
+
+FLUJO OBLIGATORIO
+
+FASE 1 — NICHO
+Pregunta únicamente: "¿Qué nicho de YouTube quieres investigar?" Registra la respuesta.
+
+FASE 2 — REFERENCIAS Y MERCADO
+Pregunta si el usuario tiene canales de referencia y qué idioma o mercado le interesa.
+- Si aporta canales, regístralos.
+- Si no aporta canales, carga la skill explorador-canales y delega la búsqueda.
+- El explorador debe localizar entre 5 y 8 canales relevantes, combinando consolidados, emergentes y casos con vídeos atípicamente exitosos, con enlaces y justificación.
+Muestra el resultado y pide aprobación de la lista antes de continuar.
+
+FASE 3 — TENDENCIAS Y DEMANDA
+Tras la aprobación, carga y ejecuta en paralelo:
+- analista-canales-tendencias
+- analista-demanda
+
+Fusiona ambas entregas en un INFORME DE DESCUBRIMIENTO con:
+1. Definición del nicho
+2. Audiencia principal
+3. Canales consolidados
+4. Canales emergentes
+5. Patrones que funcionan
+6. Temas que crecen
+7. Temas saturados
+8. Entre 8 y 12 oportunidades de vídeo
+9. Tabla con señal de demanda, competencia, actualidad y potencial visual
+10. Tres recomendaciones prioritarias
+11. Fuentes, limitaciones y fecha
+
+PUNTO DE DECISIÓN 1
+Detente y pregunta qué tema quiere desarrollar el usuario. No avances sin su elección.
+
+FASE 4 — INVESTIGACIÓN Y VERIFICACIÓN
+Cuando el usuario elija tema:
+1. Carga investigador-tema y produce un dossier documentado.
+2. Después carga verificador y revisa el dossier de forma independiente.
+3. Corrige o elimina afirmaciones débiles y etiqueta lo no verificable.
+4. Entrega un resumen verificado y las fuentes.
+
+FASE 5 — GUIONES
+Carga guionista y genera dos variantes:
+- Larga: completa y reproducible.
+- Corta: más directa, conservando el valor esencial.
+
+En ambas, la introducción debe seguir exactamente:
+RESULTADO → HERRAMIENTA → PROMESA → CONTEXTO → TUTORIAL
+La transición final de la introducción será: "Vamos a meterle caña → Paso 1".
+
+PUNTO DE DECISIÓN 2
+Detente y pregunta si el usuario elige la larga, la corta o una combinación.
+
+FASE 6 — PACKAGING
+Tras la elección, carga especialista-packaging y entrega:
+- 10 títulos distintos.
+- 3 conceptos de miniatura.
+- Una pareja recomendada de título + miniatura.
+- Justificación breve basada en claridad, promesa, curiosidad y lectura móvil.
+Si el usuario impone una palabra obligatoria para los títulos, respétala en los diez.
+
+DEFINICIÓN DE LAS SIETE SKILLS
+
+1. explorador-canales
+Busca canales top y emergentes del nicho. Comprueba relevancia, actividad reciente, vídeos destacados, formato y audiencia. Devuelve enlaces y explica por qué incluye cada canal. No inventa métricas.
+
+2. analista-canales-tendencias
+Cruza los canales aprobados para detectar patrones de temas, formatos, títulos, resultados atípicos, crecimiento, saturación y huecos. Distingue observación de inferencia.
+
+3. analista-demanda
+Evalúa señales actuales de demanda mediante búsqueda web y YouTube, autocompletado cuando esté disponible, actualidad, repetición temática y competencia visible. No presenta estimaciones como volúmenes reales. Produce una tabla de 8 a 12 temas.
+
+4. investigador-tema
+Investiga a fondo el tema elegido con fuentes primarias cuando existan. Reúne hechos, ejemplos, riesgos, límites, demos posibles, ángulos y material útil para el guion.
+
+5. verificador
+Audita de forma independiente el dossier. Verifica afirmaciones, fechas, cifras, enlaces y coherencia. Clasifica cada afirmación como confirmada, corregida, no verificable o descartada.
+
+6. guionista
+Transforma el dossier verificado en guion largo y corto. Mantiene la voz natural, evita relleno y da pasos suficientes para reproducir el resultado. Usa la estructura de introducción indicada.
+
+7. especialista-packaging
+Propone títulos y miniaturas coherentes con el vídeo. Los títulos combinan claridad, beneficio y curiosidad sin engaño. Las miniaturas son simples, legibles en móvil, con pocos elementos y una prueba visual clara.
+
+FRONTMATTER DE TODAS LAS SKILLS
+Cada SKILL.md debe empezar con frontmatter YAML válido que contenga name y description.
+MUY IMPORTANTE: si description contiene dos puntos seguidos de un espacio, escribe el valor completo entre comillas dobles. Hazlo desde el principio en las siete skills.
+
+Ejemplo correcto:
+---
+name: explorador-canales
+description: "Especialista: localiza y justifica canales relevantes de YouTube."
+---
+No uses dos puntos sin comillas dentro de description.
+
+VALIDACIÓN OBLIGATORIA ANTES DE TERMINAR
+No ejecutes ninguna investigación real todavía. Primero crea y valida el preset.
+1. Verifica que el preset monta correctamente y que todas las filas o paquetes se resuelven.
+2. Confirma que conserva búsqueda web, fetch, subagentes, workflow o paralelismo, skills, filesystem, objetivos y planificación.
+3. Comprueba que existen exactamente los siete SKILL.md esperados.
+4. Analiza el frontmatter YAML de los siete archivos.
+5. Comprueba que todas las descriptions con dos puntos están entre comillas dobles.
+6. Confirma que el catálogo descubre exactamente las siete skills.
+7. Realiza una prueba real de carga de explorador-canales.
+8. Si falla cualquier comprobación, corrígela y repite la validación.
+9. No modifiques ningún preset incorporado.
+
+Al terminar, entrégame:
+- Estado final: validado o pendiente.
+- Nombre e ID del preset.
+- Ubicación creada.
+- Lista de archivos.
+- Capacidades conservadas.
+- Resultado de la validación de las siete skills.
+- Instrucciones breves para abrir una sesión nueva y seleccionar el preset.
+
+FIN DEL PROMPT MAESTRO</pre>
+      </div>
+    </div>
+  </details>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">3</div><div class="step-title">Esperar la orquestación y la validación automática</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Espera a que Creator Mode procese la orden. Puede tardar unos minutos.</li>
+        <li>El sistema eliminará archivos obsoletos si fuera necesario, copiará la base estándar y generará las 7 habilidades en sus carpetas.</li>
+        <li>Revisa el mensaje final del agente para confirmar que el catálogo ha validado las <b>7 de 7</b> skills.</li>
+      </ol>
+      <div class="resultado"><b>Resultado esperado:</b> el agente responde con «Estado final: validado», la lista de archivos y el resultado de la validación.</div>
+    </div>
+  </div>
+
+  <h3>Archivos que debe generar</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Archivo</th><th>Para qué sirve</th></tr></thead>
+      <tbody>
+        <tr><td><code>preset.yml</code></td><td>Define el preset: nombre, ID y descripción visible en el selector.</td></tr>
+        <tr><td><code>agent.cordis.yml</code></td><td>Configura al agente coordinador: persona, reglas y flujo de fases.</td></tr>
+        <tr><td><code>skills/explorador-canales/SKILL.md</code></td><td>Instrucciones del cazatalentos de canales.</td></tr>
+        <tr><td><code>skills/analista-canales-tendencias/SKILL.md</code></td><td>Instrucciones del analista de patrones y formatos.</td></tr>
+        <tr><td><code>skills/analista-demanda/SKILL.md</code></td><td>Instrucciones del analista de demanda y competencia.</td></tr>
+        <tr><td><code>skills/investigador-tema/SKILL.md</code></td><td>Instrucciones del documentalista del tema elegido.</td></tr>
+        <tr><td><code>skills/verificador/SKILL.md</code></td><td>Instrucciones del auditor de datos.</td></tr>
+        <tr><td><code>skills/guionista/SKILL.md</code></td><td>Instrucciones del redactor de guiones.</td></tr>
+        <tr><td><code>skills/especialista-packaging/SKILL.md</code></td><td>Instrucciones del diseñador de títulos y miniaturas.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ================= PARTE C ================= -->
+  <h2>PARTE C — Ejecutar la investigación real</h2>
+
+  <div class="box warn">
+    <span class="box-title">⚠️ ANTES DE EMPEZAR</span>
+    Cierra Creator Mode. Abre una <b>sesión nueva</b> y selecciona el preset <b>Investigador de Nichos YouTube</b>. Si investigas dentro de Creator Mode, el sistema se comportará de forma imprevisible.
+  </div>
+
+  <div class="diagram">
+    <div class="dg-node master">FLUJO DE INVESTIGACIÓN</div>
+    <div class="dg-row">
+      <div class="dg-node">F1 · Nicho</div>
+      <div class="dg-node">F2 · Mercado y canales</div>
+      <div class="dg-node">F3 · Informe</div>
+    </div>
+    <div class="dg-arrow">↓ PUNTO DE DECISIÓN 1</div>
+    <div class="dg-row">
+      <div class="dg-node">F4 · Investigación + Verificación</div>
+      <div class="dg-node">F5 · Guiones</div>
+    </div>
+    <div class="dg-arrow">↓ PUNTO DE DECISIÓN 2</div>
+    <div class="dg-row">
+      <div class="dg-node">F6 · Títulos y miniaturas</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">1</div><div class="step-title">Abrir sesión nueva e invocar el preset</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Haz clic en <b>New Session</b>.</li>
+        <li>En el desplegable de presets, selecciona <b>Investigador de Nichos YouTube</b>.</li>
+      </ol>
+      <p class="motivo">Motivo: esto carga al agente coordinador con sus siete herramientas listas.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">2</div><div class="step-title">Seleccionar el modelo de trabajo</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Puedes cambiar el modelo a <b>DeepSeek Flash</b> manteniendo el razonamiento en <b>Alto</b>.</li>
+      </ol>
+      <p class="motivo">Motivo: para la fase conversacional y de investigación, Flash ofrece una velocidad de respuesta muy alta y reduce todavía más el coste.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">3</div><div class="step-title">Iniciar el diálogo</div></div>
+    <div class="step-body">
+      <ol><li>Envía el mensaje inicial.</li></ol>
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Mensaje inicial</span><button class="copyBtn" data-copy="#msg1">COPIAR</button></div>
+<pre id="msg1">Quiero comenzar una investigación nueva.</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">4</div><div class="step-title">Definir nicho, mercado e idioma (Fases 1 y 2)</div></div>
+    <div class="step-body">
+      <ol>
+        <li>El coordinador te preguntará el nicho. Responde indicando nicho, idioma y si tienes canales de referencia.</li>
+      </ol>
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Ejemplo de respuesta</span><button class="copyBtn" data-copy="#msg2">COPIAR</button></div>
+<pre id="msg2">El nicho es: Crear canales de YouTube.
+Idioma y mercado: Español / España y Latinoamérica.
+No tengo canales de referencia; encuentra los más relevantes y explícame por qué encajan.</pre>
+      </div>
+      <p>El coordinador activará automáticamente la skill <code>explorador-canales</code> y te devolverá una lista de entre 5 y 8 canales.</p>
+      <ol start="2">
+        <li>Revisa la lista y apruébala para continuar.</li>
+      </ol>
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Aprobación de la lista</span><button class="copyBtn" data-copy="#msg3">COPIAR</button></div>
+<pre id="msg3">Apruebo la lista completa de canales para seguir con el análisis.</pre>
+      </div>
+      <div class="resultado"><b>Resultado esperado:</b> el coordinador confirma la lista aprobada y pasa a la Fase 3.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">5</div><div class="step-title">Generación del Informe de Descubrimiento (Fase 3)</div></div>
+    <div class="step-body">
+      <ol>
+        <li>El coordinador ejecutará en paralelo a <code>analista-canales-tendencias</code> y <code>analista-demanda</code>.</li>
+        <li>Recibirás un <b>Informe de Descubrimiento</b> con una tabla de 8 a 12 oportunidades clasificadas por señal de demanda, competencia, actualidad y potencial visual.</li>
+      </ol>
+      <div class="resultado"><b>Resultado esperado:</b> informe con definición del nicho, audiencia, canales consolidados y emergentes, patrones, temas que crecen, temas saturados, oportunidades, tabla y tres recomendaciones prioritarias.</div>
+    </div>
+  </div>
+
+  <div class="box info">
+    <span class="box-title">🛑 PUNTO DE DECISIÓN 1</span>
+    El sistema se detendrá obligatoriamente y te pedirá escoger un tema de la lista. <b>No avanza sin tu elección.</b>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">6</div><div class="step-title">Elegir el tema</div></div>
+    <div class="step-body">
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Ejemplo de elección de tema</span><button class="copyBtn" data-copy="#msg4">COPIAR</button></div>
+<pre id="msg4">Quiero desarrollar la opción recomendada: "Cómo crear un canal de YouTube con IA desde cero".</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">7</div><div class="step-title">Investigación profunda y verificación (Fase 4)</div></div>
+    <div class="step-body">
+      <ol>
+        <li>El coordinador activa <code>investigador-tema</code> para recopilar datos con fuentes primarias.</li>
+        <li>Inmediatamente después activa a <code>verificador</code>, que audita la información de forma independiente.</li>
+        <li>Se te presenta un dossier limpio indicando qué afirmaciones han sido confirmadas, corregidas, marcadas como no verificables o descartadas.</li>
+      </ol>
+      <div class="resultado"><b>Resultado esperado:</b> dossier verificado con fuentes y fecha de consulta.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">8</div><div class="step-title">Generación de guiones (Fase 5)</div></div>
+    <div class="step-body">
+      <ol>
+        <li>La skill <code>guionista</code> genera dos versiones: <b>larga</b> (completa y reproducible) y <b>corta</b> (más directa, conservando el valor esencial).</li>
+        <li>Ambas incluyen la estructura obligatoria de introducción.</li>
+      </ol>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bloque</th><th>Qué debe contener</th></tr></thead>
+          <tbody>
+            <tr><td><b>RESULTADO</b></td><td>Qué va a lograr el espectador al terminar el vídeo.</td></tr>
+            <tr><td><b>HERRAMIENTA</b></td><td>Qué software o método se va a utilizar.</td></tr>
+            <tr><td><b>PROMESA</b></td><td>El ahorro de tiempo o beneficio exacto.</td></tr>
+            <tr><td><b>CONTEXTO</b></td><td>Por qué este método supera a los tradicionales.</td></tr>
+            <tr><td><b>TUTORIAL</b></td><td>Transición directa con la frase: <i>«Vamos a meterle caña → Paso 1»</i>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="box info">
+    <span class="box-title">🛑 PUNTO DE DECISIÓN 2</span>
+    El sistema se detiene y te pregunta si eliges la variante larga, la corta o una combinación. <b>No avanza sin tu respuesta.</b>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">9</div><div class="step-title">Elegir el guion</div></div>
+    <div class="step-body">
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Ejemplo de elección de guion</span><button class="copyBtn" data-copy="#msg5">COPIAR</button></div>
+<pre id="msg5">Elijo la variante de guion corta.</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">10</div><div class="step-title">Packaging de contenidos (Fase 6)</div></div>
+    <div class="step-body">
+      <ol>
+        <li><code>especialista-packaging</code> genera 10 títulos alternativos diseñados para maximizar el CTR.</li>
+        <li>Propone 3 conceptos visuales de miniatura legibles en móvil.</li>
+        <li>Entrega una combinación recomendada de Título + Miniatura con justificación breve.</li>
+      </ol>
+      <p>Si quieres imponer una palabra obligatoria en todos los títulos, pídelo en este momento.</p>
+      <div class="codeblock">
+        <div class="codeblock-head"><span>Palabra obligatoria en los títulos</span><button class="copyBtn" data-copy="#msg6">COPIAR</button></div>
+<pre id="msg6">Genera los títulos incluyendo la palabra "GRATIS" en todos ellos.</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">11</div><div class="step-title">Localizar los archivos finales</div></div>
+    <div class="step-body">
+      <ol>
+        <li>Todos los documentos y el archivo central <code>project-state.md</code> quedan guardados automáticamente en tu carpeta de proyecto.</li>
+        <li>Haz clic en el desplegable de archivos (<i>Show files / Ver archivos</i>) para abrir cualquier documento generado.</li>
+      </ol>
+      <div class="resultado"><b>Resultado esperado:</b> tienes el informe, el dossier verificado, el guion elegido, el packaging y el archivo de estado dentro de <code>niche-projects/&lt;slug-del-nicho&gt;/</code>.</div>
+    </div>
+  </div>
+
+  <h2>Resumen del procedimiento</h2>
+  <div class="card soft">
+    El trabajo práctico se divide en fases ordenadas. Tú solo intervienes para definir las variables iniciales (nicho, mercado, canales) y para tomar decisiones en los <b>dos puntos de parada obligatorios</b>: elección del tema y elección del guion. Todo lo demás lo orquesta el coordinador.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: PRÁCTICA
+     ============================================================ -->
+<section class="panel" id="p-practica" role="tabpanel" aria-label="Práctica">
+
+  <h1>Práctica: ejercicios y casos de uso</h1>
+
+  <h2>Ejercicios con solución explicada</h2>
+
+  <details open>
+    <summary>Ejercicio 1 — Añadir un aviso de copyright al final de cada guion</summary>
+    <div class="details-body">
+      <p><b>Consigna:</b> quieres que los guiones generados por tu agente incluyan un aviso sobre derechos de autor al final. ¿Qué parte del Prompt Maestro debes modificar?</p>
+      <div class="box ok">
+        <span class="box-title">✅ SOLUCIÓN EXPLICADA</span>
+        <p>Debes editar la sección <b>FASE 5 — GUIONES</b> del Prompt Maestro.</p>
+        <p>Dentro de las instrucciones del subagente <code>guionista</code>, añade la regla estricta:</p>
+        <p><i>«Incluye siempre una sección final denominada "Aviso Legal y Copyright" antes de concluir el texto.»</i></p>
+        <p><b>Por qué:</b> el guionista es el único subagente que produce texto de guion. Si pones la regla en otra fase, el guionista nunca la verá.</p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Ejercicio 2 — Obligar a que los 10 títulos incluyan una palabra concreta</summary>
+    <div class="details-body">
+      <p><b>Consigna:</b> quieres que los 10 títulos generados para tu vídeo incluyan obligatoriamente la palabra <i>«GRATIS»</i>. ¿Cómo se lo indicas al agente?</p>
+      <div class="box ok">
+        <span class="box-title">✅ SOLUCIÓN EXPLICADA</span>
+        <p>No hace falta tocar el Prompt Maestro. La <b>FASE 6 — PACKAGING</b> ya contempla esta regla:</p>
+        <p><i>«Si el usuario impone una palabra obligatoria para los títulos, respétala en los diez.»</i></p>
+        <p>Por lo tanto, cuando llegues a la Fase 6, simplemente escribe en el chat:</p>
+        <p><code>Genera los títulos incluyendo la palabra "GRATIS" en todos ellos.</code></p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Ejercicio 3 — Cambiar el nicho sin romper el preset</summary>
+    <div class="details-body">
+      <p><b>Consigna:</b> ya has investigado el nicho «Crear canales de YouTube». Ahora quieres investigar «Finanzas personales» sin perder la investigación anterior.</p>
+      <div class="box ok">
+        <span class="box-title">✅ SOLUCIÓN EXPLICADA</span>
+        <p>Abre una <b>sesión nueva</b> con el mismo preset y escribe <code>Quiero comenzar una investigación nueva.</code></p>
+        <p>El coordinador creará una carpeta distinta dentro de <code>niche-projects/</code> usando el slug del nuevo nicho (<code>finanzas-personales</code>), de modo que la investigación anterior permanece intacta en su propia carpeta.</p>
+        <p><b>Por qué:</b> el archivo de estado vive dentro de <code>niche-projects/&lt;slug-del-nicho&gt;/</code>, así que cada nicho tiene su propio historial.</p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Ejercicio 4 — Añadir un octavo subagente especializado</summary>
+    <div class="details-body">
+      <p><b>Consigna:</b> quieres añadir un subagente que analice los comentarios de los vídeos de la competencia para detectar dudas frecuentes de la audiencia.</p>
+      <div class="box ok">
+        <span class="box-title">✅ SOLUCIÓN EXPLICADA</span>
+        <p>Vuelve a Creator Mode y pide una modificación del preset existente. Un prompt posible sería:</p>
+        <p><i>«Modifica el preset investigador-nichos-youtube. Añade una octava skill llamada analista-comentarios, cuyo SKILL.md describa cómo revisar los comentarios públicos de los vídeos más vistos de los canales aprobados para detectar dudas repetidas, objeciones y peticiones de la audiencia. Insértala en la FASE 3, después del análisis de demanda. Mantén las siete skills existentes sin cambios y vuelve a validar el catálogo.»</i></p>
+        <p><b>Por qué:</b> Creator Mode es exactamente la herramienta para esto. No debes editar los archivos a mano.</p>
+      </div>
+    </div>
+  </details>
+
+  <h2>Casos de uso reales</h2>
+
+  <div class="card">
+    <h3 style="margin-top:0">Caso 1 — Lanzar un canal de YouTube desde cero</h3>
+    <p><b>Situación:</b> quieres empezar un canal pero no sabes de qué hablar.</p>
+    <p><b>Cómo lo usas:</b> ejecutas el flujo completo. El explorador te da canales reales de referencia, los analistas te dan un informe con 8–12 oportunidades y tú eliges la que tenga mejor relación demanda/competencia.</p>
+    <p><b>Qué obtienes:</b> una decisión de tema basada en señales, no en intuición.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Caso 2 — Optimizar contenido que ya publicas</h3>
+    <p><b>Situación:</b> llevas 40 vídeos publicados con resultados irregulares.</p>
+    <p><b>Cómo lo usas:</b> aportas tú mismo la lista de canales de referencia (los que compiten contigo) y saltas directamente a la Fase 3.</p>
+    <p><b>Qué obtienes:</b> patrones de títulos y formatos que funcionan en tu nicho, y huecos de contenido que nadie está cubriendo.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Caso 3 — Validar una idea antes de invertir dinero</h3>
+    <p><b>Situación:</b> quieres saber si hay audiencia real en español para un tema muy concreto.</p>
+    <p><b>Cómo lo usas:</b> defines nicho, idioma (Español / España y Latinoamérica) y dejas que el analista de demanda evalúe la actualidad, la repetición temática y la competencia visible.</p>
+    <p><b>Qué obtienes:</b> un informe que separa hechos observados, inferencias y recomendaciones. Sin promesas de viralidad.</p>
+  </div>
+
+  <h2>Ejemplo de tabla de oportunidades (formato de salida)</h2>
+  <p>Así es como el analista de demanda presenta los resultados. Los valores son <b>señales relativas</b>, nunca volúmenes de búsqueda inventados.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Tema propuesto</th><th>Señal de demanda</th><th>Competencia</th><th>Actualidad</th><th>Potencial visual</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Cómo crear un canal de YouTube con IA desde cero</td><td>Alta</td><td>Media</td><td>Alta</td><td>Alto</td></tr>
+        <tr><td>Errores que hunden un canal nuevo</td><td>Alta</td><td>Alta</td><td>Media</td><td>Medio</td></tr>
+        <tr><td>Guion perfecto: estructura paso a paso</td><td>Media</td><td>Media</td><td>Alta</td><td>Alto</td></tr>
+        <tr><td>Miniaturas que consiguen clics (con pruebas)</td><td>Alta</td><td>Media</td><td>Media</td><td>Muy alto</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.78rem;color:var(--muted)"><i>Tabla ilustrativa del formato. Tu investigación real producirá sus propios temas y valoraciones.</i></p>
+
+</section>
+
+<!-- ============================================================
+     PANEL: ERRORES
+     ============================================================ -->
+<section class="panel" id="p-errores" role="tabpanel" aria-label="Errores">
+
+  <h1>Resolución de errores frecuentes</h1>
+  <p>Ninguno de estos fallos requiere borrar el preset. Todos se reparan con un prompt o un cambio de ajuste.</p>
+
+  <h2>Tabla de diagnóstico rápido</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Error</th><th>Causa probable</th><th>Solución inmediata</th></tr></thead>
+      <tbody>
+        <tr><td><b>Skill unknown</b></td><td>Dos puntos sin comillas en la descripción de la skill.</td><td>Usar el prompt de reparación YAML.</td></tr>
+        <tr><td><b>Preset no visible</b></td><td>Fallo de registro en la carpeta de usuario.</td><td>Abrir sesión nueva o pedir re-registro a la IA.</td></tr>
+        <tr><td><b>Error 403 / 429</b></td><td>Bloqueo en la web consultada.</td><td>Pedir cambio de fuente o marcarla como limitación.</td></tr>
+        <tr><td><b>No escribe archivos</b></td><td>Permisos fijados en <i>Read Only</i>.</td><td>Cambiar a <i>Workspace Write</i> o <i>Full Access</i>.</td></tr>
+        <tr><td><b>Investigación cortada</b></td><td>Cierre accidental o caída de red.</td><td>Leer <code>project-state.md</code> y continuar desde la fase pendiente.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>5.1 — Error de sintaxis YAML en las habilidades</h2>
+  <div class="card">
+    <p><b>Síntoma:</b> aparece el mensaje <code>Error: skill "explorador-canales" is unknown or no longer available</code>.</p>
+    <p><b>Causa:</b> el campo <code>description:</code> del archivo <code>SKILL.md</code> incluye dos puntos seguidos de un espacio (<code>: </code>) sin comillas dobles, lo que corrompe el formato YAML.</p>
+    <p><b>Solución:</b> abre la misma sesión que creó el preset (o Creator Mode) y pega el siguiente prompt de reparación.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT DE REPARACIÓN YAML</span>
+        <button class="copyBtn" data-copy="#promptFix">COPIAR</button>
+      </div>
+<pre id="promptFix">Corrige el preset de usuario investigador-nichos-youtube.
+
+El error "skill ... is unknown or no longer available" puede deberse a frontmatter YAML inválido. Revisa estos siete archivos SKILL.md:
+- explorador-canales
+- analista-canales-tendencias
+- analista-demanda
+- investigador-tema
+- verificador
+- guionista
+- especialista-packaging
+
+En cada archivo:
+1. Conserva exactamente el campo name y todo el cuerpo de instrucciones.
+2. Si el valor de description contiene ": " (dos puntos y espacio), envuelve el valor completo entre comillas dobles.
+3. No cambies nada más del contenido.
+4. No toques agent.cordis.yml, preset.yml ni ningún preset incorporado.
+5. Si es posible, realiza las siete correcciones en una sola operación de escritura para evitar permisos repetidos.
+
+Después valida:
+- El YAML/frontmatter de los siete archivos.
+- Que el catálogo descubre exactamente las siete skills.
+- Que explorador-canales se puede cargar y devuelve sus instrucciones.
+
+No reinicies la investigación ni avances de fase. Limítate a corregir, validar y comunicar el resultado.</pre>
+    </div>
+
+    <div class="box info">
+      <span class="box-title">💡 REGLA PREVENTIVA</span>
+      Si una <code>description</code> contiene dos puntos seguidos de un espacio, escríbela siempre entre comillas dobles. Ejemplo correcto:
+      <br><code>description: "Especialista: localiza y justifica canales relevantes de YouTube."</code>
+    </div>
+  </div>
+
+  <h2>5.2 — El preset no aparece en el selector</h2>
+  <div class="card">
+    <p><b>Causa:</b> se guardó en una ruta incorrecta o la interfaz no se ha refrescado.</p>
+    <p><b>Solución:</b></p>
+    <ol>
+      <li>Cierra la sesión activa.</li>
+      <li>Crea una nueva sesión.</li>
+      <li>Verifica el desplegable de presets.</li>
+      <li>Si persiste, escribe al chat: <i>«Oye, no me aparece el agente en los presets»</i> y la IA corregirá la ruta del archivo de configuración.</li>
+    </ol>
+  </div>
+
+  <h2>5.3 — Sitios web bloqueados o errores de conexión (403 / 429)</h2>
+  <div class="card">
+    <p><b>Causa:</b> una página web externa impide la extracción automática de datos.</p>
+    <p><b>Solución:</b> envía este mensaje al coordinador.</p>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT PARA FUENTES BLOQUEADAS</span>
+        <button class="copyBtn" data-copy="#promptBlock">COPIAR</button>
+      </div>
+<pre id="promptBlock">Busca una fuente alternativa para esa afirmación. Si no puedes verificarla, márcala como no verificable, elimínala del guion y conserva la limitación en el informe.</pre>
+    </div>
+    <div class="box warn">
+      <span class="box-title">⚠️ NUNCA HAGAS ESTO</span>
+      Rellenar el hueco con una suposición. Si un dato no se puede verificar, se marca como no verificable y se documenta la limitación. Esa es la diferencia entre una investigación seria y una inventada.
+    </div>
+  </div>
+
+  <h2>5.4 — Reanudar una investigación interrumpida</h2>
+  <div class="card">
+    <p><b>Causa:</b> cierre accidental de la aplicación o caída de red.</p>
+    <p><b>Solución:</b> abre la carpeta del proyecto en una sesión nueva y pega este prompt, sustituyendo el slug por el de tu nicho.</p>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT PARA RETOMAR UNA INVESTIGACIÓN</span>
+        <button class="copyBtn" data-copy="#promptResume">COPIAR</button>
+      </div>
+<pre id="promptResume">Lee niche-projects/[SLUG-DEL-NICHO]/project-state.md. Resume el estado actual, indica la última fase completada y continúa únicamente desde la siguiente fase pendiente.</pre>
+    </div>
+    <p><b>Por qué funciona:</b> el archivo <code>project-state.md</code> conserva las 14 secciones del proyecto. El coordinador lo lee, conserva lo válido y continúa sin repetir trabajo.</p>
+  </div>
+
+  <h2>5.5 — El archivo de estado y sus 14 secciones</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Sección</th><th>Qué guarda</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Nicho</td><td>El nicho elegido por el usuario.</td></tr>
+        <tr><td>2</td><td>Idioma y mercado</td><td>España, Latinoamérica, otro.</td></tr>
+        <tr><td>3</td><td>Canales de referencia aportados</td><td>Los que dio el usuario, si los dio.</td></tr>
+        <tr><td>4</td><td>Canales descubiertos</td><td>Los que encontró el explorador.</td></tr>
+        <tr><td>5</td><td>Evidencias y fuentes</td><td>Enlaces concretos y fecha de consulta.</td></tr>
+        <tr><td>6</td><td>Patrones observados</td><td>Formatos, títulos y frecuencias que funcionan.</td></tr>
+        <tr><td>7</td><td>Temas y oportunidades</td><td>La tabla de 8 a 12 temas.</td></tr>
+        <tr><td>8</td><td>Tema elegido</td><td>La decisión del Punto de Decisión 1.</td></tr>
+        <tr><td>9</td><td>Investigación del tema</td><td>El dossier del investigador.</td></tr>
+        <tr><td>10</td><td>Verificación</td><td>El informe del auditor.</td></tr>
+        <tr><td>11</td><td>Guiones</td><td>Las dos variantes generadas.</td></tr>
+        <tr><td>12</td><td>Guion elegido</td><td>La decisión del Punto de Decisión 2.</td></tr>
+        <tr><td>13</td><td>Títulos y miniaturas</td><td>El packaging completo.</td></tr>
+        <tr><td>14</td><td>Recomendación final</td><td>El cierre del coordinador.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box ok">
+    <span class="box-title">✅ RESUMEN DE ESTE BLOQUE</span>
+    No es necesario borrar el agente para solucionar fallos. Los errores sintácticos se reparan corrigiendo el marcado YAML, los bloqueos web se gestionan buscando alternativas y los cortes de sesión se recuperan leyendo el archivo de estado.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: RESUMEN
+     ============================================================ -->
+<section class="panel" id="p-resumen" role="tabpanel" aria-label="Resumen">
+
+  <h1>Resumen general</h1>
+
+  <div class="card">
+    <p>En este tutorial has aprendido a usar <b>DeepSeek Harness</b> para orquestar un sistema de <b>siete subagentes inteligentes</b> especializados en la investigación de nichos de YouTube.</p>
+    <p>Has preparado el entorno de trabajo, construido el preset mediante un Prompt Maestro en Creator Mode, ejecutado un flujo por fases guiadas y aprendido a resolver los errores más habituales sin destruir nada.</p>
+  </div>
+
+  <h2>Conceptos clave</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Concepto</th><th>Definición</th></tr></thead>
+      <tbody>
+        <tr><td><b>Orquestación multiagente</b></td><td>Asignar roles especializados a distintos subagentes en lugar de usar un único prompt monolítico.</td></tr>
+        <tr><td><b>Creator Mode</b></td><td>El entorno de meta-creación dentro de Harness para programar agentes.</td></tr>
+        <tr><td><b>Preset</b></td><td>La plantilla que almacena al coordinador y sus subagentes.</td></tr>
+        <tr><td><b>Puntos de decisión</b></td><td>Paradas obligatorias donde tú eliges el rumbo de la investigación.</td></tr>
+        <tr><td><b>Verificación independiente</b></td><td>Fase de auditoría encargada de eliminar datos inventados.</td></tr>
+        <tr><td><b>Project State</b></td><td>El archivo <code>project-state.md</code> que guarda todo el historial y permite retomar el trabajo.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Errores que NUNCA debes cometer</h2>
+  <div class="box err">
+    <span class="box-title">1. Ejecutar una investigación dentro de Creator Mode</span>
+    Creator Mode sirve únicamente para construir y validar el preset. Para investigar, abre siempre una sesión nueva.
+  </div>
+  <div class="box err">
+    <span class="box-title">2. Aceptar permisos de escritura a ciegas</span>
+    Comprueba siempre que la ruta apunta a la carpeta prevista antes de autorizar.
+  </div>
+  <div class="box err">
+    <span class="box-title">3. Dejar descripciones de skills con dos puntos sin comillas</span>
+    Provocará un fallo en la lectura del archivo YAML y la skill dejará de existir para el catálogo.
+  </div>
+  <div class="box err">
+    <span class="box-title">4. Borrar el preset completo por un fallo puntual</span>
+    Es mucho más rápido reparar el archivo afectado usando el prompt de corrección.
+  </div>
+  <div class="box err">
+    <span class="box-title">5. Prometer viralidad</span>
+    Un análisis serio habla de señales de demanda, oportunidad y riesgo. Nunca de visitas garantizadas.
+  </div>
+
+  <h2>Recomendaciones para seguir aprendiendo</h2>
+  <div class="card">
+    <ul>
+      <li><b>Probar nuevos nichos:</b> replica el tutorial variando el mercado (Finanzas, Tecnología, Cocina, Productividad).</li>
+      <li><b>Crear agentes para otros usos:</b> adapta el Prompt Maestro para montar equipos de soporte al cliente, análisis de datos o redacción de blogs.</li>
+      <li><b>Explorar nuevos modelos:</b> experimenta combinando distintos modelos LLM en el desplegable según necesites velocidad o razonamiento.</li>
+      <li><b>Añadir subagentes:</b> usa Creator Mode para añadir un octavo especialista sin romper los siete existentes.</li>
+    </ul>
+  </div>
+
+  <h2>Las fases, de un vistazo</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fase</th><th>Qué ocurre</th><th>Quién interviene</th><th>¿Te paras?</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Se define el nicho</td><td>Coordinador + tú</td><td>No</td></tr>
+        <tr><td>2</td><td>Mercado, idioma y canales de referencia</td><td><code>explorador-canales</code></td><td>Apruebas la lista</td></tr>
+        <tr><td>3</td><td>Tendencias y demanda en paralelo</td><td><code>analista-canales-tendencias</code> + <code>analista-demanda</code></td><td><b>Sí — Punto 1</b></td></tr>
+        <tr><td>4</td><td>Investigación profunda + auditoría</td><td><code>investigador-tema</code> + <code>verificador</code></td><td>No</td></tr>
+        <tr><td>5</td><td>Dos variantes de guion</td><td><code>guionista</code></td><td><b>Sí — Punto 2</b></td></tr>
+        <tr><td>6</td><td>Títulos, miniaturas y recomendación</td><td><code>especialista-packaging</code></td><td>No</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box ok">
+    <span class="box-title">✅ LA IDEA QUE TE LLEVAS</span>
+    No usas una IA que lo hace todo regular. Usas un equipo donde cada uno hace una sola cosa y la hace bien, coordinado por un director que solo te molesta cuando de verdad tienes que decidir.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: FUENTES
+     ============================================================ -->
+<section class="panel" id="p-fuentes" role="tabpanel" aria-label="Fuentes">
+
+  <h1>Fuentes y enlaces</h1>
+  <p>Este tutorial se ha elaborado a partir de los siguientes materiales de referencia.</p>
+
+  <div class="card">
+    <h3 style="margin-top:0">1. Vídeo principal de YouTube</h3>
+    <p><b>Nombre del vídeo:</b> «DeepSeek Harness: convierte un agente en todo un equipo de IA»</p>
+    <p><b>Canal:</b> NextGen IA Hub</p>
+    <p><b>URL:</b><br><code>https://youtube.com/watch?v=t9OSYThsn_c&amp;is=YDaFMdpdf4uqFZzT</code></p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">2. Vídeo complementario de instalación y configuración básica</h3>
+    <p><b>Nombre del vídeo:</b> «Instalación, API y configuración de DeepSeek Harness»</p>
+    <p><b>URL:</b><br><code>https://youtu.be/jnJLbLkGO18</code></p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">3. Documento de guía PDF</h3>
+    <p><b>Título del PDF:</b> «Guia_Agente_Investigador_Nichos_DeepSeek_Harness.pdf»</p>
+    <p><b>Subtítulo:</b> Crea un agente investigador de nichos en DeepSeek Harness</p>
+    <p><b>Edición:</b> Octubre de 2026 — NextGen IA Hub</p>
+  </div>
+
+  <div class="box info">
+    <span class="box-title">ℹ️ NOTA SOBRE LAS FUENTES</span>
+    Los enlaces se reproducen tal y como aparecen en el material original. Si alguno dejara de estar disponible, el contenido del tutorial sigue siendo válido porque las instrucciones están reproducidas íntegramente en esta página.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: PROMPTS
+     ============================================================ -->
+<section class="panel" id="p-prompts" role="tabpanel" aria-label="Prompts">
+
+  <h1>Guía de prompts — DeepSeek Harness</h1>
+  <p>Aquí tienes, reunidos y listos para copiar, todos los prompts que se usan a lo largo del flujo de investigación de nichos. Cada uno incluye una explicación breve de qué hace y cuándo conviene utilizarlo.</p>
+
+  <div class="prompt-index">
+    <h3>Índice de prompts</h3>
+    <ol>
+      <li><a href="#prompt-maestro">Crear el preset multiagente (Prompt Maestro)</a></li>
+      <li><a href="#prompt-inicio">Iniciar una investigación nueva</a></li>
+      <li><a href="#prompt-nicho-a">Definir nicho sin canales de referencia (Opción A)</a></li>
+      <li><a href="#prompt-nicho-b">Definir nicho con canales de referencia (Opción B)</a></li>
+      <li><a href="#prompt-reparar-yaml">Reparar errores YAML (skills desconocidas)</a></li>
+      <li><a href="#prompt-verificar-fuentes">Verificar fuentes y evidencias</a></li>
+      <li><a href="#prompt-detener-decision">Forzar detención en puntos de decisión</a></li>
+      <li><a href="#prompt-no-sobrescribir">Evitar sobrescritura del archivo de estado</a></li>
+      <li><a href="#prompt-fuentes-bloqueadas">Gestionar fuentes bloqueadas (403 / 429)</a></li>
+      <li><a href="#prompt-retomar">Retomar una investigación interrumpida</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="promptBox" id="prompt-maestro">
+    <h2><span class="pnum">1</span> Crear el preset multiagente (Prompt Maestro)</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Es la orden completa que construye todo el sistema multiagente: crea el preset, el coordinador y las siete skills especializadas, y luego las valida.</p>
+      <p><b>¿Cuándo usarlo?</b> Una sola vez, dentro de Creator Mode, después de haber creado la carpeta de trabajo y haber seleccionado un modelo con razonamiento Alto. Se pega como un único mensaje.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT MAESTRO — investigador-nichos-youtube</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">INICIO DEL PROMPT MAESTRO
+
+Quiero que crees un preset personalizado de DeepSeek Harness llamado:
+
+ID: investigador-nichos-youtube
+Nombre visible: Investigador de Nichos YouTube
+Descripción: Sistema multiagente que investiga nichos y canales de YouTube, detecta oportunidades actuales y produce investigación, guiones, títulos y conceptos de miniatura.
+
+OBJETIVO
+Construye un coordinador en español que convierta una conversación guiada en una investigación completa de YouTube. El usuario no debe tener que saber programar ni gestionar manualmente a los subagentes.
+
+BASE Y CAPACIDADES
+1. Parte de una copia del preset incorporado "standard". No modifiques ningún preset incorporado.
+2. Conserva búsqueda web y fetch, subagentes, ejecución paralela o workflow, skills, planificación, objetivos, lectura y escritura de archivos.
+3. Registra siete skills locales independientes dentro del propio preset.
+4. El coordinador debe cargar la skill correspondiente antes de delegar cada especialidad.
+5. Usa rutas relativas y {{cwd}}. No incluyas claves, secretos ni rutas personales.
+6. Escribe únicamente bajo la raíz de presets del usuario, en la carpeta investigador-nichos-youtube.
+7. Intenta realizar la creación y validación con el menor número razonable de operaciones de escritura.
+
+ARCHIVOS ESPERADOS
+- preset.yml
+- agent.cordis.yml
+- skills/explorador-canales/SKILL.md
+- skills/analista-canales-tendencias/SKILL.md
+- skills/analista-demanda/SKILL.md
+- skills/investigador-tema/SKILL.md
+- skills/verificador/SKILL.md
+- skills/guionista/SKILL.md
+- skills/especialista-packaging/SKILL.md
+
+PERSONA Y REGLAS DEL COORDINADOR
+El coordinador habla siempre en español claro y dirige el proceso de principio a fin.
+
+Reglas obligatorias:
+- No inventa datos, volúmenes de búsqueda, cifras de suscriptores ni conclusiones.
+- Cita enlaces concretos y fecha de consulta cuando use información externa.
+- Separa siempre HECHO OBSERVADO, INFERENCIA y RECOMENDACIÓN.
+- No promete que un vídeo se hará viral. Habla de señales, oportunidad y riesgo.
+- Si una fuente está bloqueada, lo indica y busca una alternativa; no rellena el hueco con una suposición.
+- Hace una sola pregunta de decisión cada vez.
+- No avanza después de los dos puntos de decisión hasta recibir respuesta del usuario.
+- No obliga al usuario a invocar skills o subagentes manualmente.
+- Puede retomar una investigación leyendo su archivo de estado.
+- No da por finalizada una fase si falta una entrega del especialista correspondiente.
+
+ARCHIVO DE ESTADO
+En cada investigación crea y mantiene: niche-projects/&lt;slug-del-nicho&gt;/project-state.md
+
+Debe conservar como mínimo estas secciones:
+1. Nicho
+2. Idioma y mercado
+3. Canales de referencia aportados
+4. Canales descubiertos
+5. Evidencias y fuentes
+6. Patrones observados
+7. Temas y oportunidades
+8. Tema elegido
+9. Investigación del tema
+10. Verificación
+11. Guiones
+12. Guion elegido
+13. Títulos y miniaturas
+14. Recomendación final
+
+Si el archivo ya existe, primero debe leerlo, conservar lo válido y actualizarlo sin borrar resultados anteriores.
+
+FLUJO OBLIGATORIO
+
+FASE 1 — NICHO
+Pregunta únicamente: "¿Qué nicho de YouTube quieres investigar?" Registra la respuesta.
+
+FASE 2 — REFERENCIAS Y MERCADO
+Pregunta si el usuario tiene canales de referencia y qué idioma o mercado le interesa.
+- Si aporta canales, regístralos.
+- Si no aporta canales, carga la skill explorador-canales y delega la búsqueda.
+- El explorador debe localizar entre 5 y 8 canales relevantes, combinando consolidados, emergentes y casos con vídeos atípicamente exitosos, con enlaces y justificación.
+Muestra el resultado y pide aprobación de la lista antes de continuar.
+
+FASE 3 — TENDENCIAS Y DEMANDA
+Tras la aprobación, carga y ejecuta en paralelo:
+- analista-canales-tendencias
+- analista-demanda
+
+Fusiona ambas entregas en un INFORME DE DESCUBRIMIENTO con:
+1. Definición del nicho
+2. Audiencia principal
+3. Canales consolidados
+4. Canales emergentes
+5. Patrones que funcionan
+6. Temas que crecen
+7. Temas saturados
+8. Entre 8 y 12 oportunidades de vídeo
+9. Tabla con señal de demanda, competencia, actualidad y potencial visual
+10. Tres recomendaciones prioritarias
+11. Fuentes, limitaciones y fecha
+
+PUNTO DE DECISIÓN 1
+Detente y pregunta qué tema quiere desarrollar el usuario. No avances sin su elección.
+
+FASE 4 — INVESTIGACIÓN Y VERIFICACIÓN
+Cuando el usuario elija tema:
+1. Carga investigador-tema y produce un dossier documentado.
+2. Después carga verificador y revisa el dossier de forma independiente.
+3. Corrige o elimina afirmaciones débiles y etiqueta lo no verificable.
+4. Entrega un resumen verificado y las fuentes.
+
+FASE 5 — GUIONES
+Carga guionista y genera dos variantes:
+- Larga: completa y reproducible.
+- Corta: más directa, conservando el valor esencial.
+
+En ambas, la introducción debe seguir exactamente:
+RESULTADO → HERRAMIENTA → PROMESA → CONTEXTO → TUTORIAL
+La transición final de la introducción será: "Vamos a meterle caña → Paso 1".
+
+PUNTO DE DECISIÓN 2
+Detente y pregunta si el usuario elige la larga, la corta o una combinación.
+
+FASE 6 — PACKAGING
+Tras la elección, carga especialista-packaging y entrega:
+- 10 títulos distintos.
+- 3 conceptos de miniatura.
+- Una pareja recomendada de título + miniatura.
+- Justificación breve basada en claridad, promesa, curiosidad y lectura móvil.
+Si el usuario impone una palabra obligatoria para los títulos, respétala en los diez.
+
+DEFINICIÓN DE LAS SIETE SKILLS
+
+1. explorador-canales
+Busca canales top y emergentes del nicho. Comprueba relevancia, actividad reciente, vídeos destacados, formato y audiencia. Devuelve enlaces y explica por qué incluye cada canal. No inventa métricas.
+
+2. analista-canales-tendencias
+Cruza los canales aprobados para detectar patrones de temas, formatos, títulos, resultados atípicos, crecimiento, saturación y huecos. Distingue observación de inferencia.
+
+3. analista-demanda
+Evalúa señales actuales de demanda mediante búsqueda web y YouTube, autocompletado cuando esté disponible, actualidad, repetición temática y competencia visible. No presenta estimaciones como volúmenes reales. Produce una tabla de 8 a 12 temas.
+
+4. investigador-tema
+Investiga a fondo el tema elegido con fuentes primarias cuando existan. Reúne hechos, ejemplos, riesgos, límites, demos posibles, ángulos y material útil para el guion.
+
+5. verificador
+Audita de forma independiente el dossier. Verifica afirmaciones, fechas, cifras, enlaces y coherencia. Clasifica cada afirmación como confirmada, corregida, no verificable o descartada.
+
+6. guionista
+Transforma el dossier verificado en guion largo y corto. Mantiene la voz natural, evita relleno y da pasos suficientes para reproducir el resultado. Usa la estructura de introducción indicada.
+
+7. especialista-packaging
+Propone títulos y miniaturas coherentes con el vídeo. Los títulos combinan claridad, beneficio y curiosidad sin engaño. Las miniaturas son simples, legibles en móvil, con pocos elementos y una prueba visual clara.
+
+FRONTMATTER DE TODAS LAS SKILLS
+Cada SKILL.md debe empezar con frontmatter YAML válido que contenga name y description.
+MUY IMPORTANTE: si description contiene dos puntos seguidos de un espacio, escribe el valor completo entre comillas dobles. Hazlo desde el principio en las siete skills.
+
+Ejemplo correcto:
+---
+name: explorador-canales
+description: "Especialista: localiza y justifica canales relevantes de YouTube."
+---
+No uses dos puntos sin comillas dentro de description.
+
+VALIDACIÓN OBLIGATORIA ANTES DE TERMINAR
+No ejecutes ninguna investigación real todavía. Primero crea y valida el preset.
+1. Verifica que el preset monta correctamente y que todas las filas o paquetes se resuelven.
+2. Confirma que conserva búsqueda web, fetch, subagentes, workflow o paralelismo, skills, filesystem, objetivos y planificación.
+3. Comprueba que existen exactamente los siete SKILL.md esperados.
+4. Analiza el frontmatter YAML de los siete archivos.
+5. Comprueba que todas las descriptions con dos puntos están entre comillas dobles.
+6. Confirma que el catálogo descubre exactamente las siete skills.
+7. Realiza una prueba real de carga de explorador-canales.
+8. Si falla cualquier comprobación, corrígela y repite la validación.
+9. No modifiques ningún preset incorporado.
+
+Al terminar, entrégame:
+- Estado final: validado o pendiente.
+- Nombre e ID del preset.
+- Ubicación creada.
+- Lista de archivos.
+- Capacidades conservadas.
+- Resultado de la validación de las siete skills.
+- Instrucciones breves para abrir una sesión nueva y seleccionar el preset.
+
+FIN DEL PROMPT MAESTRO</pre>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="promptBox" id="prompt-inicio">
+    <h2><span class="pnum">2</span> Iniciar una investigación nueva</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Da el pistoletazo de salida al flujo interactivo del coordinador.</p>
+      <p><b>¿Cuándo usarlo?</b> En una sesión nueva, después de seleccionar el preset «Investigador de Nichos YouTube», para comenzar el proceso.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT DE INICIO</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Quiero comenzar una investigación nueva.</pre>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="promptBox" id="prompt-nicho-a">
+    <h2><span class="pnum">3</span> Definir nicho sin canales de referencia (Opción A)</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Establece nicho, idioma y mercado, y delega al explorador la búsqueda de canales relevantes.</p>
+      <p><b>¿Cuándo usarlo?</b> Cuando no conoces canales de referencia y quieres que el sistema los encuentre por ti.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>OPCIÓN A — Sin canales propios</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">El nicho es: [TU NICHO]. Idioma y mercado: [ESPAÑOL / ESPAÑA / LATAM / OTRO]. No tengo canales de referencia; encuentra los más relevantes y explícame por qué encajan.</pre>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="promptBox" id="prompt-nicho-b">
+    <h2><span class="pnum">4</span> Definir nicho con canales de referencia (Opción B)</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Establece nicho, idioma y mercado, y registra una lista de canales que tú aportas para saltar directamente al análisis.</p>
+      <p><b>¿Cuándo usarlo?</b> Cuando ya conoces tu competencia y quieres que el sistema trabaje sobre ella.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>OPCIÓN B — Con canales propios</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">El nicho es: [TU NICHO]. Idioma y mercado: [ESPAÑOL / ESPAÑA / LATAM / OTRO]. Mis canales de referencia son: [NOMBRES O ENLACES].</pre>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="promptBox" id="prompt-reparar-yaml">
+    <h2><span class="pnum">5</span> Reparar errores YAML (skills desconocidas)</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Corrige el frontmatter YAML de las siete skills cuando una description contiene «: » sin comillas dobles.</p>
+      <p><b>¿Cuándo usarlo?</b> Cuando aparece el error <code>skill "..." is unknown or no longer available</code>. Se pega en la misma sesión que creó el preset o en Creator Mode.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT DE REPARACIÓN YAML</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Corrige el preset de usuario investigador-nichos-youtube.
+
+El error "skill ... is unknown or no longer available" puede deberse a frontmatter YAML inválido. Revisa estos siete archivos SKILL.md:
+- explorador-canales
+- analista-canales-tendencias
+- analista-demanda
+- investigador-tema
+- verificador
+- guionista
+- especialista-packaging
+
+En cada archivo:
+1. Conserva exactamente el campo name y todo el cuerpo de instrucciones.
+2. Si el valor de description contiene ": " (dos puntos y espacio), envuelve el valor completo entre comillas dobles.
+3. No cambies nada más del contenido.
+4. No toques agent.cordis.yml, preset.yml ni ningún preset incorporado.
+5. Si es posible, realiza las siete correcciones en una sola operación de escritura para evitar permisos repetidos.
+
+Después valida:
+- El YAML/frontmatter de los siete archivos.
+- Que el catálogo descubre exactamente las siete skills.
+- Que explorador-canales se puede cargar y devuelve sus instrucciones.
+
+No reinicies la investigación ni avances de fase. Limítate a corregir, validar y comunicar el resultado.</pre>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="promptBox" id="prompt-verificar-fuentes">
+    <h2><span class="pnum">6</span> Verificar fuentes y evidencias</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Obliga al coordinador a mostrar enlaces, fechas y evidencias antes de avanzar, separando hechos de hipótesis.</p>
+      <p><b>¿Cuándo usarlo?</b> Antes del Punto de Decisión 1, si quieres inspeccionar la calidad de las fuentes antes de elegir un tema.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT DE VERIFICACIÓN DE FUENTES</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Antes de avanzar, muéstrame las fuentes, fechas y evidencias principales. Separa lo confirmado de las hipótesis y señala cualquier limitación.</pre>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="promptBox" id="prompt-detener-decision">
+    <h2><span class="pnum">7</span> Forzar detención en puntos de decisión</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Impide que el coordinador salte a la siguiente fase sin que el usuario haya elegido el tema o el guion.</p>
+      <p><b>¿Cuándo usarlo?</b> Si el agente intenta avanzar automáticamente antes del Punto de Decisión 1 o del Punto de Decisión 2.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT DE DETENCIÓN OBLIGATORIA</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">No avances todavía: necesito elegir el tema en este punto de decisión.</pre>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="promptBox" id="prompt-no-sobrescribir">
+    <h2><span class="pnum">8</span> Evitar sobrescritura del archivo de estado</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Impide que el agente reescriba desde cero <code>project-state.md</code> y pierda el trabajo anterior.</p>
+      <p><b>¿Cuándo usarlo?</b> Cuando aparece la alerta <code>Cannot overwrite existing file</code> o si el agente intenta regenerar el archivo completo.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT ANTI-SOBRESCRITURA</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Lee primero el archivo project-state.md existente. Conserva su contenido válido y actualízalo sin borrar resultados anteriores. Después continúa desde la fase que corresponda.</pre>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="promptBox" id="prompt-fuentes-bloqueadas">
+    <h2><span class="pnum">9</span> Gestionar fuentes bloqueadas (403 / 429)</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Obliga al verificador a buscar alternativas y a marcar como no verificable lo que no se pueda comprobar.</p>
+      <p><b>¿Cuándo usarlo?</b> Cuando una web externa bloquea la lectura automática y el agente no puede extraer datos.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT PARA FUENTES BLOQUEADAS</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Busca una fuente alternativa para esa afirmación. Si no puedes verificarla, márcala como no verificable, elimínala del guion y conserva la limitación en el informe.</pre>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="promptBox" id="prompt-retomar">
+    <h2><span class="pnum">10</span> Retomar una investigación interrumpida</h2>
+    <div class="card soft prompt-meta">
+      <p><b>¿Qué hace?</b> Reanuda el trabajo leyendo el archivo <code>project-state.md</code> y continúa solo desde la fase pendiente.</p>
+      <p><b>¿Cuándo usarlo?</b> Tras un cierre accidental o una caída de red, en una sesión nueva, sustituyendo <code>[SLUG-DEL-NICHO]</code> por el slug real del proyecto.</p>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head">
+        <span>PROMPT PARA RETOMAR UNA INVESTIGACIÓN</span>
+        <button class="copyBtn" type="button">COPIAR</button>
+      </div>
+<pre class="promptBody">Lee niche-projects/[SLUG-DEL-NICHO]/project-state.md. Resume el estado actual, indica la última fase completada y continúa únicamente desde la siguiente fase pendiente.</pre>
+    </div>
+  </div>
+
+  <div class="box info">
+    <span class="box-title">ℹ️ CÓMO USAR ESTA PESTAÑA</span>
+    Pulsa el botón <b>COPIAR</b> de cualquier prompt para llevarlo al portapapeles y pégalo directamente en la caja de chat de DeepSeek Harness. El botón te confirmará el copiado y volverá a su estado original al cabo de un instante.
+  </div>
+
+</section>
+
+<!-- ============================================================
+     PANEL: CRÉDITOS
+     ============================================================ -->
+<section class="panel" id="p-creditos" role="tabpanel" aria-label="Créditos">
+
+  <h1 style="margin-bottom:.4rem">Créditos</h1>
+
+  <div class="hero-svg-mount" data-svg-hero="true" role="img"
+       aria-label="Animación: un agente coordinador central conectado a siete subagentes especializados mediante pulsos que viajan por las conexiones."></div>
+  <p class="hero-caption">El mismo equipo que has aprendido a construir: un coordinador y siete especialistas.</p>
+
+  <div class="card" style="text-align:center">
+    <div class="author-name">Rubén Sbarsky</div>
+    <p class="author-role">Autor del tutorial</p>
+    <p style="font-size:.85rem;color:var(--muted);margin-top:.6rem">
+      Guía práctica para construir un sistema multiagente de investigación de nichos de YouTube con DeepSeek Harness.
+    </p>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item">
+      <b>Fecha de creación</b>
+      05/10/2026
+    </div>
+    <div class="meta-item">
+      <b>Hora de creación</b>
+      10:42:17
+    </div>
+    <div class="meta-item">
+      <b>Versión del archivo</b>
+      V002
+    </div>
+    <div class="meta-item">
+      <b>Formato</b>
+      HTML autónomo (sin dependencias externas)
+    </div>
+  </div>
+
+  <h2 style="margin-top:1.6rem">Sobre este tutorial</h2>
+  <div class="card soft">
+    <p>Este tutorial transforma la guía original de DeepSeek Harness para investigación de nichos de YouTube en un documento interactivo de aprendizaje. El contenido técnico —flujo de fases, definición de las siete skills, reglas del coordinador, prompt maestro y resolución de errores— procede íntegramente del material de referencia.</p>
+    <p>La estructura pedagógica (explicaciones para principiantes, ejemplos, ejercicios resueltos, tablas comparativas y checklist de aprendizaje) se ha añadido para facilitar el estudio autónomo.</p>
+  </div>
+
+  <h2>Novedades de esta versión</h2>
+  <div class="card soft">
+    <ul>
+      <li><b>V002 —</b> Añadida la pestaña <b>PROMPTS</b> con los diez prompts reunidos, índice navegable, descripción y uso de cada uno, y botón COPIAR unificado y robusto (compatible con file://, iframes, móvil y permisos denegados).</li>
+      <li><b>V001 —</b> Versión inicial. Incluye las ocho pestañas originales, el SVG animado compartido entre INICIO y CRÉDITOS, buscador, control de tamaño de texto, modo claro/oscuro, impresión a PDF y checklist con progreso guardado.</li>
+    </ul>
+  </div>
+
+  <h2>Aviso</h2>
+  <div class="box warn">
+    <span class="box-title">⚠️ SOBRE LOS RESULTADOS</span>
+    Este sistema produce <b>análisis basados en señales</b>. No garantiza visitas, suscriptores ni viralidad. Cualquier herramienta que prometa eso está mintiendo.
+  </div>
+
+  <p class="footer-note">Tutorial HTML autónomo · Funciona sin conexión · Ábrelo directamente en tu navegador</p>
+
+</section>
+
+</main>
+
+<button class="to-top" id="toTop" aria-label="Volver arriba">↑</button>
+
+<div class="iframe-warning" id="iframeWarning">
+  ⚠️ Parece que este archivo se está mostrando dentro de un visor incrustado. Si el botón <b>PDF</b> no responde, abre el archivo directamente en tu navegador (Chrome, Edge, Firefox, Safari) y pulsa <b>Ctrl+P</b> / <b>Cmd+P</b>.
+</div>
+
+<!-- ============================================================
+     SVG FUENTE (oculto). Se extrae como plantilla y se elimina del DOM.
+     ============================================================ -->
+<svg id="svgHeroSource" width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute;width:0;height:0;overflow:hidden;left:-9999px">
+  <defs>
+    <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="55%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </linearGradient>
+    <linearGradient id="gAcc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="fGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4.5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g id="svgHero">
+    <rect x="0" y="0" width="820" height="260" rx="18" fill="url(#gBg)"/>
+
+    <circle cx="410" cy="132" r="124" fill="#38bdf8" opacity="0.05"/>
+    <circle cx="410" cy="132" r="96" fill="none" stroke="url(#gAcc)" stroke-width="1" stroke-dasharray="7 11" opacity="0.5">
+      <animateTransform attributeName="transform" type="rotate" from="0 410 132" to="360 410 132" dur="28s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="410" cy="132" r="68" fill="none" stroke="#818cf8" stroke-width="1" stroke-dasharray="3 9" opacity="0.42">
+      <animateTransform attributeName="transform" type="rotate" from="360 410 132" to="0 410 132" dur="19s" repeatCount="indefinite"/>
+    </circle>
+
+    <g stroke="url(#gAcc)" stroke-width="1.3" opacity="0.42" fill="none">
+      <line x1="410" y1="132" x2="410" y2="32"/>
+      <line x1="410" y1="132" x2="644.5" y2="70"/>
+      <line x1="410" y1="132" x2="702.4" y2="154"/>
+      <line x1="410" y1="132" x2="540.2" y2="222"/>
+      <line x1="410" y1="132" x2="279.8" y2="222"/>
+      <line x1="410" y1="132" x2="117.6" y2="154"/>
+      <line x1="410" y1="132" x2="175.5" y2="70"/>
+    </g>
+
+    <rect x="326" y="102" width="168" height="60" rx="16" fill="#0b1220" stroke="url(#gAcc)" stroke-width="1.6" filter="url(#fGlow)"/>
+    <text x="410" y="128" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#e2e8f0">COORDINADOR</text>
+    <text x="410" y="147" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9.5" letter-spacing="1.4" fill="#7dd3fc">DEEPSEEK HARNESS</text>
+
+    <g fill="#7dd3fc" filter="url(#fGlow)">
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;410" dur="2.8s" begin="0s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;50" dur="2.8s" begin="0s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="0s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;602.3" dur="2.8s" begin="0.4s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;81.2" dur="2.8s" begin="0.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="0.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;649.8" dur="2.8s" begin="0.8s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;150" dur="2.8s" begin="0.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="0.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;516.8" dur="2.8s" begin="1.2s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;205.8" dur="2.8s" begin="1.2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="1.2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;303.2" dur="2.8s" begin="1.6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;205.8" dur="2.8s" begin="1.6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="1.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;170.2" dur="2.8s" begin="2s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;150" dur="2.8s" begin="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="410" cy="132" r="3.2">
+        <animate attributeName="cx" values="410;217.7" dur="2.8s" begin="2.4s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="132;81.2" dur="2.8s" begin="2.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="2.8s" begin="2.4s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <g>
+      <rect x="364" y="19" width="92" height="26" rx="13" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+      <text x="410" y="36" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">EXPLORADOR</text>
+    </g>
+    <g>
+      <rect x="598.5" y="57" width="92" height="26" rx="13" fill="#0f172a" stroke="#818cf8" stroke-width="1"/>
+      <text x="644.5" y="74" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">DEMANDA</text>
+    </g>
+    <g>
+      <rect x="656.4" y="141" width="92" height="26" rx="13" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+      <text x="702.4" y="158" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">GUIONISTA</text>
+    </g>
+    <g>
+      <rect x="494.2" y="209" width="92" height="26" rx="13" fill="#0f172a" stroke="#818cf8" stroke-width="1"/>
+      <text x="540.2" y="226" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">PACKAGING</text>
+    </g>
+    <g>
+      <rect x="233.8" y="209" width="92" height="26" rx="13" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+      <text x="279.8" y="226" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">VERIFICADOR</text>
+    </g>
+    <g>
+      <rect x="71.6" y="141" width="92" height="26" rx="13" fill="#0f172a" stroke="#818cf8" stroke-width="1"/>
+      <text x="117.6" y="158" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">INVESTIGADOR</text>
+    </g>
+    <g>
+      <rect x="129.5" y="57" width="92" height="26" rx="13" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+      <text x="175.5" y="74" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#cbd5e1">TENDENCIAS</text>
+    </g>
+  </g>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ==========================================================
+     1. TABS
+     ========================================================== */
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+
+  function normalizeHash(h) {
+    if (!h) return '';
+    h = h.replace('#', '');
+    if (h === 'creditos') return 'p-creditos';
+    if (h === 'inicio') return 'p-inicio';
+    if (h === 'conceptos') return 'p-conceptos';
+    if (h === 'procedimiento') return 'p-procedimiento';
+    if (h === 'practica') return 'p-practica';
+    if (h === 'errores') return 'p-errores';
+    if (h === 'resumen') return 'p-resumen';
+    if (h === 'fuentes') return 'p-fuentes';
+    if (h === 'prompts') return 'p-prompts';
+    return h;
+  }
+
+  function activateTab(id, scroll) {
+    var found = false;
+    panels.forEach(function (p) {
+      var on = (p.id === id);
+      if (on) found = true;
+      p.classList.toggle('active', on);
+    });
+    if (!found) return false;
+
+    tabs.forEach(function (t) {
+      var on = (t.getAttribute('data-target') === id);
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    if (location.hash !== '#' + id) {
+      try { history.replaceState(null, '', '#' + id); } catch (e) { }
+    }
+    mountActive();
+    if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
+    return true;
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      activateTab(t.getAttribute('data-target'), true);
+    });
+  });
+
+  /* ==========================================================
+     2. SVG ANIMADO — plantilla única montada con innerHTML
+     ========================================================== */
+  var seq = 0;
+  var TPL = null;
+  var imgMode = false;
+
+  function getTemplate() {
+    if (TPL) return TPL;
+    var src = document.getElementById('svgHeroSource');
+    if (!src) return null;
+    var defsEl = src.querySelector('defs');
+    var artEl = src.querySelector('#svgHero');
+    if (!defsEl || !artEl) return null;
+
+    var d = defsEl.cloneNode(true);
+    var inner = d.querySelector('#svgHero');
+    if (inner && inner.parentNode) inner.parentNode.removeChild(inner);
+
+    var g = artEl.cloneNode(true);
+    g.removeAttribute('id');
+
+    TPL = { defs: d.innerHTML, art: g.outerHTML };
+
+    if (src.parentNode) src.parentNode.removeChild(src);
+    return TPL;
+  }
+
+  function markup(uid) {
+    var t = getTemplate();
+    if (!t) return '';
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 260" '
+      + 'width="100%" height="260" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+      + '<defs>' + t.defs + '</defs>' + t.art + '</svg>';
+
+    ['gBg', 'gAcc', 'fGlow'].forEach(function (id) {
+      s = s.split('id="' + id + '"').join('id="' + id + '-' + uid + '"')
+           .split('url(#' + id + ')').join('url(#' + id + '-' + uid + ')');
+    });
+    return s;
+  }
+
+  function mountOne(m) {
+    if (!m) return;
+    m.textContent = '';
+
+    if (imgMode) {
+      var im = document.createElement('img');
+      im.alt = '';
+      im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup('i' + (++seq)));
+      m.appendChild(im);
+      return;
+    }
+
+    m.innerHTML = markup('h' + (++seq));
+    var svg = m.querySelector('svg');
+    if (!svg) return;
+
+    var t0 = 0;
+    try {
+      svg.setCurrentTime(0);
+      svg.unpauseAnimations();
+      t0 = svg.getCurrentTime();
+    } catch (e) { }
+
+    setTimeout(function () {
+      if (document.hidden) return;
+      if (m.querySelector('svg') !== svg) return;
+      try {
+        var h = svg.getBoundingClientRect().height;
+        var now = svg.getCurrentTime();
+        if (h > 0 && (now - t0) < 0.3) {
+          imgMode = true;
+          mountOne(m);
+        }
+      } catch (e) {
+        imgMode = true;
+        mountOne(m);
+      }
+    }, 1600);
+  }
+
+  function mountActive() {
+    var list = document.querySelectorAll('.panel.active [data-svg-hero]');
+    Array.prototype.forEach.call(list, mountOne);
+  }
+
+  function mountAll() {
+    var list = document.querySelectorAll('[data-svg-hero]');
+    Array.prototype.forEach.call(list, mountOne);
+  }
+
+  function freezeAll() {
+    var mounts = document.querySelectorAll('[data-svg-hero]');
+    Array.prototype.forEach.call(mounts, function (m) {
+      if (!m.firstElementChild) mountOne(m);
+      var svg = m.querySelector('svg');
+      if (svg) {
+        try {
+          svg.pauseAnimations();
+          svg.setCurrentTime(1.2);
+        } catch (e) { }
+      }
+    });
+  }
+
+  function thawAll() {
+    var svgs = document.querySelectorAll('[data-svg-hero] svg');
+    Array.prototype.forEach.call(svgs, function (svg) {
+      try { svg.unpauseAnimations(); } catch (e) { }
+    });
+  }
+
+  // Red de seguridad: si el panel activo tiene su contenedor vacío, remontar.
+  setInterval(function () {
+    if (document.hidden) return;
+    var list = document.querySelectorAll('.panel.active [data-svg-hero]');
+    Array.prototype.forEach.call(list, function (m) {
+      if (!m.firstElementChild) mountOne(m);
+    });
+  }, 800);
+
+  /* ==========================================================
+     3. IMPRIMIR / PDF
+     ========================================================== */
+  var openedByPrint = [];
+  var inIframe = (function () {
+    try { return window.self !== window.top; } catch (e) { return true; }
+  })();
+
+  function openAllDetails() {
+    openedByPrint = [];
+    var all = document.querySelectorAll('details');
+    Array.prototype.forEach.call(all, function (d) {
+      if (!d.open) { openedByPrint.push(d); d.open = true; }
+    });
+  }
+
+  function restoreDetails() {
+    openedByPrint.forEach(function (d) { d.open = false; });
+    openedByPrint = [];
+  }
+
+  function preparePrint() {
+    openAllDetails();
+    mountAll();
+    freezeAll();
+  }
+
+  function doPrint() {
+    preparePrint();
+    var ok = false;
+    try {
+      window.print();
+      ok = true;
+    } catch (e) {
+      ok = false;
+    }
+    setTimeout(function () {
+      restoreDetails();
+      thawAll();
+      if (!ok && inIframe) {
+        var w = document.getElementById('iframeWarning');
+        if (w) w.classList.add('show');
+      }
+    }, 400);
+  }
+
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', function () { restoreDetails(); thawAll(); });
+
+  var btnPrint = document.getElementById('btnPrint');
+  if (btnPrint) {
+    btnPrint.addEventListener('click', doPrint);
+  }
+
+  if (inIframe) {
+    var warn = document.getElementById('iframeWarning');
+    if (warn) warn.classList.add('show');
+  }
+
+  /* ==========================================================
+     4. PORTAPAPELES — implementación robusta unificada
+     ========================================================== */
+
+  function legacyCopy(text){
+    return new Promise(function(resolve, reject){
+      var ta = null;
+      var prevActive = null;
+      try{
+        prevActive = document.activeElement;
+
+        ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.setAttribute('aria-hidden', 'true');
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '-9999px';
+        ta.style.width = '2em';
+        ta.style.height = '2em';
+        ta.style.padding = '0';
+        ta.style.border = 'none';
+        ta.style.outline = 'none';
+        ta.style.boxShadow = 'none';
+        ta.style.background = 'transparent';
+
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try{ ta.setSelectionRange(0, ta.value.length); }catch(_e){}
+
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        ta = null;
+
+        if(prevActive && typeof prevActive.focus === 'function'){
+          try{ prevActive.focus(); }catch(_e){}
+        }
+
+        ok ? resolve() : reject(new Error('execCommand("copy") devolvió false'));
+      }catch(err){
+        if(ta && ta.parentNode){ try{ ta.parentNode.removeChild(ta); }catch(_e){} }
+        reject(err);
+      }
+    });
+  }
+
+  function copyText(text){
+    if(navigator.clipboard
+       && window.isSecureContext
+       && typeof navigator.clipboard.writeText === 'function'){
+      return navigator.clipboard.writeText(text).catch(function(){
+        return legacyCopy(text);
+      });
+    }
+    return legacyCopy(text);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.copyBtn') : null;
+    if (!btn) return;
+    e.preventDefault();
+
+    // Buscar el cuerpo del prompt: primero dentro del .promptBox, luego por data-copy.
+    var body = null;
+    var box = btn.closest('.promptBox');
+    if (box) {
+      body = box.querySelector('.promptBody');
+    }
+    if (!body) {
+      var sel = btn.getAttribute('data-copy');
+      if (sel) body = document.querySelector(sel);
+    }
+    if (!body) return;
+
+    copyText(body.textContent).then(function () {
+      var original = btn.textContent;
+      btn.textContent = '✓ COPIADO';
+      btn.classList.add('done');
+      setTimeout(function () {
+        btn.textContent = original;
+        btn.classList.remove('done');
+      }, 1800);
+    }).catch(function () {
+      try {
+        var range = document.createRange();
+        range.selectNodeContents(body);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (err) { }
+      var original = btn.textContent;
+      btn.textContent = 'SELECCIONA Y COPIA';
+      setTimeout(function () { btn.textContent = original; }, 2200);
+    });
+  });
+
+  /* ==========================================================
+     5. BUSCADOR
+     ========================================================== */
+  var searchInput = document.getElementById('searchInput');
+  var searchInfo = document.getElementById('searchInfo');
+
+  function clearHighlights(root) {
+    var marks = root.querySelectorAll('mark.search-hl');
+    Array.prototype.forEach.call(marks, function (m) {
+      var parent = m.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(m.textContent), m);
+      parent.normalize();
+    });
+  }
+
+  function highlight(root, term) {
+    if (!term) return 0;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        var p = n.parentNode;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        var tag = p.nodeName.toLowerCase();
+        if (tag === 'script' || tag === 'style' || tag === 'mark' ||
+            tag === 'textarea' || tag === 'input' || tag === 'svg') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    var lower = term.toLowerCase();
+    var count = 0;
+
+    nodes.forEach(function (node) {
+      var text = node.nodeValue;
+      var idx = text.toLowerCase().indexOf(lower);
+      if (idx === -1) return;
+
+      var frag = document.createDocumentFragment();
+      var pos = 0;
+
+      while (idx !== -1) {
+        if (idx > pos) frag.appendChild(document.createTextNode(text.slice(pos, idx)));
+        var mk = document.createElement('mark');
+        mk.className = 'search-hl';
+        mk.textContent = text.slice(idx, idx + term.length);
+        frag.appendChild(mk);
+        pos = idx + term.length;
+        idx = text.toLowerCase().indexOf(lower, pos);
+        count++;
+      }
+      if (pos < text.length) frag.appendChild(document.createTextNode(text.slice(pos)));
+      if (node.parentNode) node.parentNode.replaceChild(frag, node);
+    });
+
+    return count;
+  }
+
+  var searchTimer = null;
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        var active = document.querySelector('.panel.active');
+        if (!active) return;
+        clearHighlights(active);
+        var term = searchInput.value.trim();
+        if (term.length < 2) {
+          if (searchInfo) searchInfo.textContent = '';
+          return;
+        }
+        var count = highlight(active, term);
+        if (searchInfo) {
+          searchInfo.textContent = count === 0 ? 'Sin resultados' : count + ' coincidencia' + (count === 1 ? '' : 's');
+        }
+      }, 260);
+    });
+  }
+
+  /* ==========================================================
+     6. TAMAÑO DE TEXTO
+     ========================================================== */
+  var FS_KEY = 'dsr-nichos-fs';
+  var fs = parseFloat(localStorage.getItem(FS_KEY) || '16');
+  if (isNaN(fs) || fs < 12 || fs > 24) fs = 16;
+
+  function applyFs() {
+    document.documentElement.style.fontSize = fs + 'px';
+    try { localStorage.setItem(FS_KEY, String(fs)); } catch (e) { }
+  }
+  applyFs();
+
+  var btnMinus = document.getElementById('btnMinus');
+  var btnPlus = document.getElementById('btnPlus');
+
+  if (btnMinus) {
+    btnMinus.addEventListener('click', function () {
+      fs = Math.max(12, fs - 1);
+      applyFs();
+    });
+  }
+  if (btnPlus) {
+    btnPlus.addEventListener('click', function () {
+      fs = Math.min(24, fs + 1);
+      applyFs();
+    });
+  }
+
+  /* ==========================================================
+     7. TEMA CLARO / OSCURO
+     ========================================================== */
+  var THEME_KEY = 'dsr-nichos-theme';
+  var btnTheme = document.getElementById('btnTheme');
+
+  function applyTheme(light) {
+    document.body.classList.toggle('light', !!light);
+    if (btnTheme) btnTheme.textContent = light ? '🌙' : '☀️';
+    try { localStorage.setItem(THEME_KEY, light ? 'light' : 'dark'); } catch (e) { }
+  }
+
+  var savedTheme = 'dark';
+  try { savedTheme = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) { }
+  applyTheme(savedTheme === 'light');
+
+  if (btnTheme) {
+    btnTheme.addEventListener('click', function () {
+      applyTheme(!document.body.classList.contains('light'));
+    });
+  }
+
+  /* ==========================================================
+     8. PROGRESO DE SCROLL + VOLVER ARRIBA
+     ========================================================== */
+  var fill = document.getElementById('progressFill');
+  var toTop = document.getElementById('toTop');
+
+  function onScroll() {
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - doc.clientHeight;
+    var pct = max > 0 ? (doc.scrollTop / max) * 100 : 0;
+    if (fill) fill.style.width = pct.toFixed(1) + '%';
+    if (toTop) toTop.classList.toggle('show', doc.scrollTop > 320);
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+
+  if (toTop) {
+    toTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  /* ==========================================================
+     9. CHECKLIST CON LOCALSTORAGE
+     ========================================================== */
+  var CHK_KEY = 'dsr-nichos-checklist-v1';
+  var chkBoxes = Array.prototype.slice.call(document.querySelectorAll('.check-item input[type=checkbox]'));
+  var chkText = document.getElementById('chkText');
+  var chkFill = document.getElementById('chkFill');
+
+  function saveChecks() {
+    var data = {};
+    chkBoxes.forEach(function (cb) { data[cb.id] = cb.checked; });
+    try { localStorage.setItem(CHK_KEY, JSON.stringify(data)); } catch (e) { }
+  }
+
+  function updateChkProgress() {
+    var total = chkBoxes.length;
+    var done = chkBoxes.filter(function (cb) { return cb.checked; }).length;
+    if (chkText) chkText.textContent = done + ' de ' + total + ' completados';
+    if (chkFill) chkFill.style.width = total ? ((done / total) * 100).toFixed(0) + '%' : '0%';
+  }
+
+  function loadChecks() {
+    var data = {};
+    try { data = JSON.parse(localStorage.getItem(CHK_KEY) || '{}') || {}; } catch (e) { data = {}; }
+
+    chkBoxes.forEach(function (cb) {
+      if (data[cb.id]) cb.checked = true;
+      var item = cb.closest ? cb.closest('.check-item') : null;
+      if (item) item.classList.toggle('done', cb.checked);
+
+      cb.addEventListener('change', function () {
+        if (item) item.classList.toggle('done', cb.checked);
+        saveChecks();
+        updateChkProgress();
+      });
+    });
+    updateChkProgress();
+  }
+  loadChecks();
+
+  /* ==========================================================
+     10. ARRANQUE + NAVEGACIÓN A ANCLAS INTERNAS
+     ========================================================== */
+  function scrollToAnchor(el) {
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+    } catch (e) {
+      el.scrollIntoView();
+    }
+  }
+
+  function boot() {
+    var raw = (location.hash || '').replace('#', '');
+    var hash = normalizeHash(location.hash);
+
+    if (hash) {
+      var el = document.getElementById(hash);
+      if (el) {
+        var parentPanel = el.classList.contains('panel')
+          ? el
+          : (el.closest ? el.closest('.panel') : null);
+        if (parentPanel) {
+          activateTab(parentPanel.id, false);
+          if (parentPanel.id !== hash) {
+            setTimeout(function () { scrollToAnchor(el); }, 60);
+          }
+          onScroll();
+          return;
+        }
+      }
+      // Si el hash apunta a un ancla interna, encontrar el panel contenedor.
+      if (raw) {
+        var rawEl = document.getElementById(raw);
+        if (rawEl) {
+          var panel = rawEl.closest ? rawEl.closest('.panel') : null;
+          if (panel) {
+            activateTab(panel.id, false);
+            setTimeout(function () { scrollToAnchor(rawEl); }, 60);
+            onScroll();
+            return;
+          }
+        }
+      }
+    }
+
+    activateTab('p-inicio', false);
+    onScroll();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  window.addEventListener('hashchange', function () {
+    var raw = (location.hash || '').replace('#', '');
+    var h = normalizeHash(location.hash);
+    var el = h ? document.getElementById(h) : null;
+    if (el) {
+      if (el.classList.contains('panel')) {
+        activateTab(el.id, false);
+      } else {
+        var parentPanel = el.closest ? el.closest('.panel') : null;
+        if (parentPanel) activateTab(parentPanel.id, false);
+      }
+      return;
+    }
+    // Intenta encontrar por el hash original (ancla interna tipo #prompt-...).
+    if (raw) {
+      var rawEl = document.getElementById(raw);
+      if (rawEl) {
+        var panel = rawEl.closest ? rawEl.closest('.panel') : null;
+        if (panel) activateTab(panel.id, false);
+      }
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
